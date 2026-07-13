@@ -1,5 +1,19 @@
 import { useState, useEffect, useRef } from "react";
-import { auth, setTokens, clearTokens, isLoggedIn, wallet } from "./api.js";
+import {
+  auth,
+  setTokens,
+  clearTokens,
+  isLoggedIn,
+  wallet,
+  budgets,
+  transactions as txApi,
+  formatNaira,
+  savings,
+  scholarship as scholarshipApi,
+  studentFinance,
+  notifications as notifApi,
+  reports,
+} from "./api.js";
 
 /*
  * NoorPay - Shari'ah-Compliant Digital Financial Platform
@@ -16,11 +30,11 @@ import { auth, setTokens, clearTokens, isLoggedIn, wallet } from "./api.js";
 
 // ── Color tokens ──────────────────────────────────────────────────
 const C = {
-  green:    "#0F5132",  // Deeper, richer Islamic green (primary)
-  greenL:   "#1B8A4C",  // Vivid mid green
-  greenXL:  "#34D399",  // Bright accent green (highlights, success glows)
+  green:    "#01140c",  // Deeper, richer Islamic green (primary)
+  greenL:   "#19683b",  // Vivid mid green
+  greenXL:  "#01180f",  // Bright accent green (highlights, success glows)
   greenPale:"#E8F5EE",  // Very light green bg
-  greenDeep:"#0A3D26",  // Near-black green for gradient depth
+  greenDeep:"#01130b",  // Near-black green for gradient depth
   amber:    "#B8860B",  // Rich gold (primary accent)
   amberL:   "#F0B429",  // Bright gold highlight
   amberXL:  "#FFD666",  // Shiny gold shimmer
@@ -96,6 +110,7 @@ const Btn = ({ children, onClick, variant = "primary", size = "md", icon, full, 
   };
   const glowMap = { primary: C.glowGreen, amber: C.glowGold };
   const isGradient = variant === "primary" || variant === "amber";
+  const iconNode = icon ? (typeof icon === 'string' ? <Icon name={icon} size={fs + 2} color={(variant === 'primary' || variant === 'amber') ? C.white : C.green} /> : icon) : null;
   return (
     <button disabled={disabled} onClick={onClick} style={{
       padding: pad,
@@ -110,9 +125,314 @@ const Btn = ({ children, onClick, variant = "primary", size = "md", icon, full, 
       transition: "transform 0.15s ease, box-shadow 0.15s ease",
       ...style
     }}>
-      {icon && <span>{icon}</span>}{children}
+      {iconNode}{children}
     </button>
   );
+};
+
+const Icon = ({ name, size = 18, color = C.green }) => {
+  const iconMap = {
+    default: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="8" />
+      </svg>
+    ),
+    rocket: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 18 L4 22 L6 16 L2 12 L8 10 L10 18 Z" />
+        <path d="M10 18 L14 14 L20 18 L18 22 L14 20 L10 18 Z" />
+        <path d="M8 10 L16 2 L22 8 L14 16" />
+      </svg>
+    ),
+    home: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 12 L12 3 L21 12" />
+        <path d="M5 12 V20 H19 V12" />
+        <path d="M9 20 V14 H15 V20" />
+      </svg>
+    ),
+    wallet: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="7" width="18" height="12" rx="2" />
+        <path d="M3 12 H7" />
+        <circle cx="17" cy="13" r="1" fill={color} />
+      </svg>
+    ),
+    send: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12 H18" />
+        <path d="M14 8 L20 12 L14 16" />
+      </svg>
+    ),
+    receive: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12 H18" />
+        <path d="M10 8 L4 12 L10 16" />
+      </svg>
+    ),
+    history: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 12 A9 9 0 1 1 12 21" />
+        <path d="M12 7 V12 L16 14" />
+      </svg>
+    ),
+    community: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="8" cy="8" r="3" />
+        <circle cx="16" cy="8" r="3" />
+        <path d="M4 21 C4 17 7 15 8 15 C9 15 12 17 12 21" />
+        <path d="M12 21 C12 17 15 15 16 15 C17 15 20 17 20 21" />
+      </svg>
+    ),
+    card: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="7" width="18" height="10" rx="2" />
+        <path d="M3 11 H21" />
+      </svg>
+    ),
+    chart: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 20 V10" />
+        <path d="M10 20 V6" />
+        <path d="M16 20 V14" />
+        <path d="M22 20 V4" />
+      </svg>
+    ),
+    gift: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 7 H21 V21 H3 Z" />
+        <path d="M12 7 V21" />
+        <path d="M3 11 H21" />
+      </svg>
+    ),
+    star: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2 L15 9 H22 L17 14 L19 22 L12 17 L5 22 L7 14 L2 9 H9 Z" />
+      </svg>
+    ),
+    settings: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15 A1.65 1.65 0 0 0 21 13.35 L22 12 L21 10.65 A1.65 1.65 0 0 0 19.4 9 L17.55 8.45 A1.65 1.65 0 0 0 16.2 6.6 L15 4.6 A1.65 1.65 0 0 0 13.35 3 L10.65 3 A1.65 1.65 0 0 0 9 4.6 L7.8 6.6 A1.65 1.65 0 0 0 6.45 8.45 L4.6 9 A1.65 1.65 0 0 0 3 10.65 L2 12 L3 13.35 A1.65 1.65 0 0 0 4.6 15 L6.45 15.55 A1.65 1.65 0 0 0 7.8 17.4 L9 19.4 A1.65 1.65 0 0 0 10.65 21 H13.35 A1.65 1.65 0 0 0 15 19.4 L16.2 17.4 A1.65 1.65 0 0 0 17.55 15.55 Z" />
+      </svg>
+    ),
+    lock: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11 V7 A4 4 0 0 1 16 7 V11" />
+      </svg>
+    ),
+    unlock: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11 V7 C8 5.895 8.895 5 10 5 C11.105 5 12 5.895 12 7" />
+      </svg>
+    ),
+    shield: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3 L4 7 V11 C4 16 7 20 12 21 C17 20 20 16 20 11 V7 L12 3 Z" />
+        <path d="M9 12 L11 14 L15 10" />
+      </svg>
+    ),
+    bank: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 10 L12 4 L20 10" />
+        <path d="M5 10 H19 V18 H5 V10 Z" />
+        <path d="M8 18 V14" />
+        <path d="M12 18 V14" />
+        <path d="M16 18 V14" />
+      </svg>
+    ),
+    moon: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12.79 A9 9 0 0 1 11.21 3 A7 7 0 1 0 21 12.79 Z" />
+      </svg>
+    ),
+    write: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 20 H20" />
+        <path d="M5 15 L18 2 L22 6 L9 19 L5 19 L5 15 Z" />
+      </svg>
+    ),
+    pdf: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2 H6 A2 2 0 0 0 4 4 V20 A2 2 0 0 0 6 22 H18 A2 2 0 0 0 20 20 V8 L14 2 Z" />
+        <path d="M14 2 V8 H20" />
+      </svg>
+    ),
+    excel: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2 H6 A2 2 0 0 0 4 4 V20 A2 2 0 0 0 6 22 H18 A2 2 0 0 0 20 20 V8 L14 2 Z" />
+        <path d="M8 13 L10 15 L12 13 L14 15 L16 13" />
+      </svg>
+    ),
+    plus: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 5 V19" />
+        <path d="M5 12 H19" />
+      </svg>
+    ),
+    phone: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 3 H18 A2 2 0 0 1 20 5 V19 A2 2 0 0 1 18 21 H6 A2 2 0 0 1 4 19 V5 A2 2 0 0 1 6 3 Z" />
+        <circle cx="12" cy="17" r="1" fill={color} />
+      </svg>
+    ),
+    target: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="8" />
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2 V6" />
+        <path d="M12 18 V22" />
+        <path d="M2 12 H6" />
+        <path d="M18 12 H22" />
+      </svg>
+    ),
+    ai: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="4" width="16" height="16" rx="4" />
+        <path d="M8 9 H10" />
+        <path d="M14 15 H16" />
+        <path d="M9 12 H15" />
+      </svg>
+    ),
+    close: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 6 L18 18" />
+        <path d="M6 18 L18 6" />
+      </svg>
+    ),
+    check: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 13 L10 18 L19 7" />
+      </svg>
+    ),
+    mosque: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 18 L12 13 L20 18 V20 H4 V18 Z" />
+        <path d="M6 18 V11 H18 V18" />
+        <path d="M9 11 L12 8 L15 11" />
+      </svg>
+    ),
+    book: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5 A2 2 0 0 1 6 17.5 H18 A2 2 0 0 1 20 19.5" />
+        <path d="M6 4 H18 V17.5" />
+        <path d="M6 4 V19.5" />
+      </svg>
+    ),
+    school: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3 L3 8 L12 13 L21 8 L12 3 Z" />
+        <path d="M3 8 V16 H21 V8" />
+        <path d="M8 16 V19 H16 V16" />
+      </svg>
+    ),
+    help: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8 A2 2 0 0 1 14 10 C14 12 12 12 12 14" />
+        <circle cx="12" cy="17" r="1" fill={color} />
+      </svg>
+    ),
+    clipboard: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 3 H16 A2 2 0 0 1 18 5 V21 H6 V5 A2 2 0 0 1 8 3 Z" />
+        <path d="M9 3 V5 H15 V3" />
+      </svg>
+    ),
+    share: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="18" cy="5" r="3" />
+        <circle cx="6" cy="12" r="3" />
+        <circle cx="18" cy="19" r="3" />
+        <path d="M8.7 10.7 L15.3 7.3" />
+        <path d="M8.7 13.3 L15.3 16.7" />
+      </svg>
+    ),
+    package: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 7 L12 2 L21 7 V17 L12 22 L3 17 V7 Z" />
+        <path d="M12 2 V22" />
+        <path d="M3 7 L12 12 L21 7" />
+      </svg>
+    ),
+    cart: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 6 H4 V4 H6" />
+        <path d="M6 6 H20 L18 14 H8 L6 6 Z" />
+        <circle cx="9" cy="19" r="1.5" fill={color} />
+        <circle cx="17" cy="19" r="1.5" fill={color} />
+      </svg>
+    ),
+    calculator: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="6" y="2" width="12" height="20" rx="2" />
+        <path d="M6 8 H18" />
+        <path d="M9 12 H9" />
+        <path d="M15 12 H15" />
+        <path d="M9 16 H9" />
+        <path d="M15 16 H15" />
+      </svg>
+    ),
+    star: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2 L15 9 H22 L17 14 L19 22 L12 17 L5 22 L7 14 L2 9 H9 Z" />
+      </svg>
+    ),
+    alert: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 4 L3 20 H21 L12 4 Z" />
+        <path d="M12 9 V13" />
+        <circle cx="12" cy="17" r="1" fill={color} />
+      </svg>
+    ),
+    trash: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 6 H21" />
+        <path d="M8 6 V4 H16 V6" />
+        <path d="M6 6 V20 H18 V6" />
+      </svg>
+    ),
+    card: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="7" width="18" height="10" rx="2" />
+        <path d="M3 11 H21" />
+      </svg>
+    ),
+    user: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 20 C4 15 7 12 12 12 C17 12 20 15 20 20" />
+      </svg>
+    ),
+    bell: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22 C13.1046 22 14 21.1046 14 20 H10 C10 21.1046 10.8954 22 12 22 Z" />
+        <path d="M18 16 V11 C18 7.68629 16.2091 4.73745 13 3.515" />
+        <path d="M6 11 V16 L4 18 H20 L18 16" />
+      </svg>
+    ),
+    eye: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12 C1 12 5 5 12 5 C19 5 23 12 23 12 C23 12 19 19 12 19 C5 19 1 12 1 12 Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    ),
+    eyeOff: (size, color) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12 C1 12 5 5 12 5 C19 5 23 12 23 12 C23 12 19 19 12 19 C5 19 1 12 1 12 Z" />
+        <path d="M9 9 L15 15" />
+        <path d="M15 9 L9 15" />
+      </svg>
+    ),
+  };
+  // If the name contains an emoji (non-ascii), render it directly as text
+  const isEmoji = typeof name === 'string' && /[\u0080-\uFFFF]/u.test(name);
+  if (isEmoji) return <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, fontSize: size, lineHeight: 1 }}>{name}</span>;
+
+  const SvgIcon = iconMap[name] || iconMap.default;
+  return <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size }}>{SvgIcon(size, color)}</span>;
 };
 
 const Badge = ({ children, color = C.green }) => (
@@ -176,7 +496,7 @@ const ListItem = ({ icon, title, sub, right, rightSub, rightColor = C.text, onCl
     borderLeft: borderLeft ? `3px solid ${borderLeft}` : undefined,
     background: C.white,
   }}>
-    {icon && <div style={{ width: 38, height: 38, borderRadius: 8, background: C.grey100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{icon}</div>}
+    {icon && <div style={{ width: 38, height: 38, borderRadius: 8, background: C.grey100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{typeof icon === 'string' ? <Icon name={icon} size={18} /> : icon}</div>}
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</div>
       {sub && <div style={{ fontSize: 11, color: C.textSub }}>{sub}</div>}
@@ -199,7 +519,7 @@ const Modal = ({ open, onClose, title, children }) => {
         <div style={{ width: 36, height: 4, background: C.grey300, borderRadius: 99, margin: "12px auto" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 16px 12px" }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{title}</h3>
-          <button onClick={onClose} style={{ background: C.grey100, border: "none", borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 16, color: C.grey700 }}>✕</button>
+          <button onClick={onClose} style={{ background: C.grey100, border: "none", borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 16, color: C.grey700 }}><Icon name="close" size={16} /></button>
         </div>
         <div style={{ padding: "0 16px" }}>{children}</div>
       </div>
@@ -311,7 +631,7 @@ const LandingStyles = () => (
 
 const LandingFeature = ({ icon, title, desc, color }) => (
   <div style={{ background: C.white, borderRadius: 14, padding: 24, border: `1px solid ${C.grey200}`, boxShadow: "0 2px 10px rgba(17,24,39,0.05)", transition: "transform 0.2s ease" }}>
-    <div style={{ width: 48, height: 48, borderRadius: 12, background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 16 }}>{icon}</div>
+    <div style={{ width: 48, height: 48, borderRadius: 12, background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 16 }}><Icon name={icon} size={24} /></div>
     <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6, color: C.text }}>{title}</div>
     <div style={{ fontSize: 13.5, color: C.textSub, lineHeight: 1.6 }}>{desc}</div>
   </div>
@@ -319,12 +639,12 @@ const LandingFeature = ({ icon, title, desc, color }) => (
 
 const LandingPage = ({ onGetStarted, onLogin }) => {
   const features = [
-    { icon: "💰", title: "Digital Wallet", desc: "Send, receive, and manage your money instantly — zero fees on NoorPay-to-NoorPay transfers.", color: C.green },
-    { icon: "🕌", title: "Zakat Calculator", desc: "Automatic Nisab and 2.5% Zakat calculation on cash, gold, and business assets, with full payment history.", color: C.amber },
-    { icon: "🤝", title: "Qard Hasan Loans", desc: "Interest-free benevolent loans with transparent, equal installment schedules — no hidden charges, ever.", color: C.blue },
-    { icon: "📊", title: "Smart Budgeting", desc: "Category budgets, spending alerts, and personalised insights to help you stay in control.", color: C.purple },
-    { icon: "🎯", title: "Savings Goals", desc: "Fixed, flexible, and goal-based savings for tuition, Hajj, Umrah, business, and more.", color: C.greenL },
-    { icon: "📖", title: "Learning Hub", desc: "Bite-sized Islamic finance literacy — articles, courses, and FAQs, built into the app.", color: C.amberL },
+    { icon: "wallet", title: "Digital Wallet", desc: "Send, receive, and manage your money instantly — zero fees on NoorPay-to-NoorPay transfers.", color: C.green },
+    { icon: "mosque", title: "Zakat Calculator", desc: "Automatic Nisab and 2.5% Zakat calculation on cash, gold, and business assets, with full payment history.", color: C.amber },
+    { icon: "community", title: "Qard Hasan Loans", desc: "Interest-free benevolent loans with transparent, equal installment schedules — no hidden charges, ever.", color: C.blue },
+    { icon: "chart", title: "Smart Budgeting", desc: "Category budgets, spending alerts, and personalised insights to help you stay in control.", color: C.purple },
+    { icon: "target", title: "Savings Goals", desc: "Fixed, flexible, and goal-based savings for tuition, Hajj, Umrah, business, and more.", color: C.greenL },
+    { icon: "book", title: "Learning Hub", desc: "Bite-sized Islamic finance literacy — articles, courses, and FAQs, built into the app.", color: C.amberL },
   ];
 
   const steps = [
@@ -348,10 +668,6 @@ const LandingPage = ({ onGetStarted, onLogin }) => {
           <span style={{ fontSize: 14, fontWeight: 600, color: C.grey700, cursor: "pointer" }}>Islamic Finance</span>
           <span style={{ fontSize: 14, fontWeight: 600, color: C.grey700, cursor: "pointer" }}>How it works</span>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <Btn variant="ghost" size="sm" onClick={onLogin}>Sign In</Btn>
-          <Btn variant="primary" size="sm" onClick={onGetStarted}>Get Started</Btn>
-        </div>
       </div>
 
       {/* Hero */}
@@ -366,7 +682,7 @@ const LandingPage = ({ onGetStarted, onLogin }) => {
             Zakat, and Qard Hasan, built with no Riba, no gambling, and no hidden fees.
           </p>
           <div style={{ display: "flex", gap: 12, marginBottom: 32, flexWrap: "wrap" }}>
-            <Btn variant="primary" size="lg" icon="🚀" onClick={onGetStarted}>Get Started Free</Btn>
+            <Btn variant="primary" size="lg" icon="rocket" onClick={onGetStarted}>Get Started Free</Btn>
             <Btn variant="outline" size="lg" onClick={onLogin}>Sign In</Btn>
           </div>
           <div className="np-land-trust">
@@ -375,7 +691,6 @@ const LandingPage = ({ onGetStarted, onLogin }) => {
             <Badge color={C.blue}>✅ Fee-Free Transfers</Badge>
           </div>
         </div>
-
         {/* Phone mockup */}
         <div className="np-land-phone">
           <div style={{ backgroundImage: C.gradGreen, borderRadius: 28, padding: 20, boxShadow: C.glowGreen }}>
@@ -390,7 +705,7 @@ const LandingPage = ({ onGetStarted, onLogin }) => {
               {[["🕌", "Zakat Payment", "-₦25,000"], ["🤝", "Qard Hasan", "+₦50,000"], ["💰", "Deposit", "+₦100,000"]].map((r, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: i < 2 ? `1px solid ${C.grey100}` : "none" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span>{r[0]}</span>
+                    <Icon name={r[0]} size={20} />
                     <span style={{ fontSize: 12.5, color: C.text, fontWeight: 600 }}>{r[1]}</span>
                   </div>
                   <span style={{ fontSize: 12.5, fontWeight: 700, color: r[2].startsWith("+") ? C.green : C.red }}>{r[2]}</span>
@@ -425,7 +740,7 @@ const LandingPage = ({ onGetStarted, onLogin }) => {
           ))}
         </div>
         <div style={{ textAlign: "center", paddingBottom: 56 }}>
-          <Btn variant="primary" size="lg" icon="🚀" onClick={onGetStarted}>Create Your Free Account</Btn>
+          <Btn variant="primary" size="lg" icon="rocket" onClick={onGetStarted}>Create Your Free Account</Btn>
         </div>
       </div>
 
@@ -471,7 +786,11 @@ const LandingPage = ({ onGetStarted, onLogin }) => {
 
 // ── Splash ────────────────────────────────────────────────────────
 const Splash = ({ onDone }) => {
-  useEffect(() => { const t = setTimeout(onDone, 1800); return () => clearTimeout(t); }, []);
+  useEffect(() => {
+    const t = setTimeout(onDone, 1800);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <div style={{ minHeight: "100vh", background: C.green, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ width: 72, height: 72, background: "rgba(255,255,255,0.15)", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, marginBottom: 20 }}>🕌</div>
@@ -485,7 +804,7 @@ const Splash = ({ onDone }) => {
 };
 
 // ── Login ─────────────────────────────────────────────────────────
-const Login = ({ onLogin, onReg }) => {
+const Login = ({ onLogin, onReg, onForgot }) => {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
@@ -496,7 +815,7 @@ const Login = ({ onLogin, onReg }) => {
     try {
       await onLogin(email, pass);
     } catch (e) {
-      setErr(e.detail || e.message || "Login failed. Please try again.");
+      setErr(e.detail || Object.values(e)[0] || "Unable to sign in.");
     } finally {
       setLoading(false);
     }
@@ -505,7 +824,10 @@ const Login = ({ onLogin, onReg }) => {
     <div style={{ minHeight: "100vh", background: C.grey100 }}>
       <div style={{ background: C.green, padding: "56px 24px 32px", textAlign: "center" }}>
         <div style={{ fontSize: 28, marginBottom: 8 }}>🕌</div>
-        <div style={{ fontSize: 26, fontWeight: 800, color: C.white, letterSpacing: -0.5 }}>NoorPay</div>
+        {/* <div style={{ fontSize: 26, fontWeight: 800, color: "red" }}>
+  TEST APP
+</div> */}
+         <div style={{ fontSize: 26, fontWeight: 800, color: C.white, letterSpacing: -0.5 }}>NoorPay</div> 
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 4 }}>Halal Finance · For Everyone</div>
       </div>
       <div style={{ padding: 20 }}>
@@ -516,7 +838,7 @@ const Login = ({ onLogin, onReg }) => {
           <Inp label="Password" type="password" value={pass} onChange={setPass} placeholder="Enter your password" />
           {err && <div style={{ fontSize: 12, color: C.red, marginBottom: 10 }}>{err}</div>}
           <div style={{ textAlign: "right", marginBottom: 14 }}>
-            <button style={{ background: "none", border: "none", color: C.green, fontSize: 13, cursor: "pointer" }}>Forgot password?</button>
+            <button onClick={() => onForgot()} style={{ background: "none", border: "none", color: C.green, fontSize: 13, cursor: "pointer" }}>Forgot password?</button>
           </div>
           <Btn full variant="primary" onClick={go} disabled={loading}>{loading ? "Signing in..." : "Sign In"}</Btn>
         </Card>
@@ -529,100 +851,142 @@ const Login = ({ onLogin, onReg }) => {
   );
 };
 
+const ForgotPassword = ({ onSubmit, onBack }) => {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const handle = async () => {
+    if (!email) { setError("Enter your registered email."); return; }
+    setLoading(true); setError(""); setSuccess("");
+    try {
+      const data = await onSubmit(email);
+      setSuccess(data.detail || "Password reset link prepared.");
+    } catch (e) {
+      setError(e.detail || Object.values(e)[0] || "Unable to send password reset.");
+    } finally { setLoading(false); }
+  };
+  return (
+    <div style={{ minHeight: "100vh", background: C.grey100 }}>
+      <PageHeader title="Forgot Password" sub="Reset your NoorPay account password" onBack={onBack} />
+      <div style={{ padding: 16 }}>
+        <Card>
+          <Inp label="Email address" type="email" value={email} onChange={setEmail} placeholder="you@example.com" />
+          {error && <div style={{ fontSize: 12, color: C.red, marginBottom: 10 }}>{error}</div>}
+          {success && <div style={{ fontSize: 12, color: C.green, marginBottom: 10 }}>{success}</div>}
+          <Btn full variant="primary" onClick={handle} disabled={loading}>{loading ? "Sending..." : "Send reset link"}</Btn>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const ResetPassword = ({ onSubmit, onBack, resetInfo }) => {
+  const [uid, setUid] = useState(resetInfo?.uid || "");
+  const [token, setToken] = useState(resetInfo?.token || "");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const handle = async () => {
+    if (!uid || !token || !password) { setError("All fields are required."); return; }
+    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    setLoading(true); setError(""); setSuccess("");
+    try {
+      const data = await onSubmit({ uid, token, password });
+      setSuccess(data.detail || "Password reset successfully.");
+    } catch (e) {
+      setError(e.detail || Object.values(e)[0] || "Unable to reset password.");
+    } finally { setLoading(false); }
+  };
+  return (
+    <div style={{ minHeight: "100vh", background: C.grey100 }}>
+      <PageHeader title="Reset Password" sub="Enter the reset token and a new password" onBack={onBack} />
+      <div style={{ padding: 16 }}>
+        <Card>
+          <Inp label="Reset UID" value={uid} onChange={setUid} placeholder="Paste UID from email or debug" />
+          <Inp label="Reset Token" value={token} onChange={setToken} placeholder="Paste token from email or debug" />
+          <Inp label="New password" type="password" value={password} onChange={setPassword} placeholder="Enter a new password" />
+          {resetInfo && (
+            <div style={{ marginBottom: 12, fontSize: 12, color: C.textSub, background: C.grey100, padding: 10, borderRadius: 8 }}>
+              <div><strong>Dev debug values</strong></div>
+              <div>UID: {resetInfo.uid}</div>
+              <div>Token: {resetInfo.token}</div>
+            </div>
+          )}
+          {error && <div style={{ fontSize: 12, color: C.red, marginBottom: 10 }}>{error}</div>}
+          {success && <div style={{ fontSize: 12, color: C.green, marginBottom: 10 }}>{success}</div>}
+          <Btn full variant="primary" onClick={handle} disabled={loading}>{loading ? "Resetting..." : "Reset password"}</Btn>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
 // ── Register ──────────────────────────────────────────────────────
 const Register = ({ onDone, onLogin }) => {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ name: "", email: "", phone: "", userType: "student", pass: "", pin: "" });
-  const [otp, setOtp] = useState(["", "", "", "", ""]);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otpDebug, setOtpDebug] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const refs = useRef([]);
-
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const refs = useRef([]);
   const handleOtp = (i, v) => {
     const a = [...otp]; a[i] = v.slice(-1); setOtp(a);
-    if (v && i < 4) refs.current[i + 1]?.focus();
+    if (v && i < 5) refs.current[i + 1]?.focus();
   };
 
-  const nextStep = async () => {
-    setError("");
-    if (step === 1) {
-      if (!form.name || !form.email || !form.phone) {
-        setError("Please complete all registration fields.");
-        return;
-      }
-      setLoading(true);
-      try {
-        await auth.registerStep1({
-          full_name: form.name,
-          email: form.email,
-          phone: form.phone,
-          user_type: form.userType,
-        });
-        setSuccess("OTP sent. Please enter the code we just sent to your phone.");
-        setStep(2);
-      } catch (e) {
-        setError(e.detail || Object.values(e)[0] || "Unable to send OTP. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+  const submitStep1 = async () => {
+    setError(""); setSuccess(""); setOtpDebug("");
+    if (!form.name || !form.email || !form.phone) {
+      setError("Please complete the details first.");
       return;
     }
+    setLoading(true);
+    try {
+      const response = await auth.registerStep1({ full_name: form.name, email: form.email, phone: form.phone, user_type: form.userType });
+      setSuccess("OTP sent. Enter the code below.");
+      if (response.otp_debug) setOtpDebug(response.otp_debug);
+      setStep(2);
+    } catch (e) {
+      setError(e.detail || Object.values(e)[0] || "Unable to send OTP.");
+    } finally { setLoading(false); }
+  };
 
-    if (step === 2) {
-      const code = otp.join("");
-      if (code.length < 5) {
-        setError("Enter the full 5-digit code.");
-        return;
-      }
-      setLoading(true);
-      try {
-        await auth.verifyOTP({ email: form.email, code, purpose: "registration" });
-        setSuccess("Verification successful. Set your password and PIN.");
-        setStep(3);
-      } catch (e) {
-        setError(e.detail || Object.values(e)[0] || "OTP verification failed.");
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
+  const submitStep2 = async () => {
+    const code = otp.join("");
+    setError(""); setSuccess("");
+    if (code.length < 6) { setError("Enter the full 6-digit code."); return; }
+    setLoading(true);
+    try {
+      await auth.verifyOTP({ email: form.email, code, purpose: "registration" });
+      setSuccess("Verification succeeded. Set your password and PIN.");
+      setStep(3);
+    } catch (e) {
+      setError(e.detail || Object.values(e)[0] || "Invalid OTP.");
+    } finally { setLoading(false); }
+  };
 
-    if (step === 3) {
-      if (!form.pass || form.pin.length < 4) {
-        setError("Please choose a valid password and 4-digit PIN.");
-        return;
-      }
-      setLoading(true);
-      try {
-        const data = await auth.completeRegister({
-          email: form.email,
-          password: form.pass,
-          pin: form.pin,
-        });
-        setSuccess("Account created successfully.");
-        onDone(data.user);
-      } catch (e) {
-        setError(e.detail || Object.values(e)[0] || "Registration failed. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
+  const submitStep3 = async () => {
+    setError(""); setSuccess("");
+    if (!form.pass || form.pin.length < 4) { setError("Choose a password and a 4-digit PIN."); return; }
+    setLoading(true);
+    try {
+      const data = await auth.completeRegister({ email: form.email, password: form.pass, pin: form.pin });
+      onDone(data.user);
+    } catch (e) {
+      setError(e.detail || Object.values(e)[0] || "Registration failed.");
+    } finally { setLoading(false); }
   };
 
   const resendCode = async () => {
-    setError("");
+    setError(""); setSuccess("");
     setLoading(true);
-    try {
-      await auth.resendOTP(form.email);
-      setSuccess("OTP resent. Check your phone again.");
-    } catch (e) {
-      setError(e.detail || Object.values(e)[0] || "Unable to resend OTP.");
-    } finally {
-      setLoading(false);
-    }
+    try { await auth.resendOTP(form.email); setSuccess("OTP resent."); } catch (e) { setError(e.detail || Object.values(e)[0] || "Could not resend."); }
+    finally { setLoading(false); }
   };
 
   if (step === 1) return (
@@ -642,7 +1006,7 @@ const Register = ({ onDone, onLogin }) => {
           ]} />
           {error && <div style={{ fontSize: 12, color: C.red, marginBottom: 10 }}>{error}</div>}
           {success && <div style={{ fontSize: 12, color: C.green, marginBottom: 10 }}>{success}</div>}
-          <Btn full variant="primary" onClick={nextStep} disabled={loading}>{loading ? "Sending OTP..." : "Continue →"}</Btn>
+          <Btn full variant="primary" onClick={submitStep1} disabled={loading}>{loading ? "Sending OTP..." : "Continue →"}</Btn>
           <div style={{ textAlign: "center", marginTop: 12 }}>
             <button onClick={onLogin} style={{ background: "none", border: "none", color: C.green, fontSize: 13, cursor: "pointer" }}>Already have an account?</button>
           </div>
@@ -650,7 +1014,6 @@ const Register = ({ onDone, onLogin }) => {
       </div>
     </div>
   );
-
   if (step === 2) return (
     <div style={{ minHeight: "100vh", background: C.grey100 }}>
       <PageHeader title="Verify Phone" sub="Step 2 of 3 — OTP Verification" />
@@ -658,8 +1021,8 @@ const Register = ({ onDone, onLogin }) => {
         <Card style={{ textAlign: "center" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📱</div>
           <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Check your phone</div>
-          <div style={{ fontSize: 13, color: C.textSub, marginBottom: 24 }}>Enter the 5-digit code sent to {form.phone || "your number"}</div>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: C.textSub, marginBottom: 24 }}>Enter the 6-digit code sent to {form.phone || "your number"}</div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 20, flexWrap: 'wrap' }}>
             {otp.map((v, i) => (
               <input key={i} ref={el => refs.current[i] = el} value={v} onChange={e => handleOtp(i, e.target.value)}
                 style={{ width: 48, height: 52, textAlign: "center", fontSize: 20, fontWeight: 700, border: `2px solid ${v ? C.green : C.grey300}`, borderRadius: 8, background: C.white, color: C.green }} />
@@ -667,13 +1030,13 @@ const Register = ({ onDone, onLogin }) => {
           </div>
           {error && <div style={{ fontSize: 12, color: C.red, marginBottom: 10 }}>{error}</div>}
           {success && <div style={{ fontSize: 12, color: C.green, marginBottom: 10 }}>{success}</div>}
-          <Btn full variant="primary" onClick={nextStep} disabled={loading || otp.join("").length < 5}>{loading ? "Verifying..." : "Verify Code"}</Btn>
+          {otpDebug && <div style={{ fontSize: 12, color: C.blue, marginBottom: 10 }}>Dev OTP: {otpDebug}</div>}
+          <Btn full variant="primary" onClick={submitStep2} disabled={loading || otp.join("").length < 6}>{loading ? "Verifying..." : "Verify Code"}</Btn>
           <button onClick={resendCode} style={{ background: "none", border: "none", color: C.green, fontSize: 13, marginTop: 12, cursor: "pointer" }}>Resend code</button>
         </Card>
       </div>
     </div>
   );
-
   if (step === 3) return (
     <div style={{ minHeight: "100vh", background: C.grey100 }}>
       <PageHeader title="Secure Account" sub="Step 3 of 3 — Password & PIN" />
@@ -686,12 +1049,11 @@ const Register = ({ onDone, onLogin }) => {
           <div style={{ background: C.greenPale, border: `1px solid ${C.green}30`, borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 12, color: C.grey700 }}>
             ✅ By registering, you confirm this platform operates on <strong>Shari'ah-compliant</strong> principles. No interest (Riba) is charged on any service.
           </div>
-          <Btn full variant="primary" onClick={nextStep} disabled={loading || !form.pass || form.pin.length < 4}>{loading ? "Creating account..." : "Create My Account"}</Btn>
+          <Btn full variant="primary" onClick={submitStep3} disabled={loading || !form.pass || form.pin.length < 4}>{loading ? "Creating account..." : "Create My Account"}</Btn>
         </Card>
       </div>
     </div>
   );
-
   return (
     <div style={{ minHeight: "100vh", background: C.grey100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ textAlign: "center" }}>
@@ -700,7 +1062,7 @@ const Register = ({ onDone, onLogin }) => {
         <div style={{ fontSize: 14, color: C.textSub, marginBottom: 24, lineHeight: 1.6 }}>
           Assalamu alaykum, <strong>{form.name || "friend"}</strong>!<br />Your NoorPay account is ready.
         </div>
-        <Btn full variant="primary" onClick={() => onDone({ email: form.email, full_name: form.name })}>Go to Dashboard →</Btn>
+        <Btn full variant="primary" onClick={onDone}>Go to Dashboard →</Btn>
       </div>
     </div>
   );
@@ -710,36 +1072,33 @@ const Register = ({ onDone, onLogin }) => {
 const Home = ({ nav, user = null }) => {
   const [balVis, setBalVis] = useState(true);
   const [balance, setBalance] = useState(null);
+  const [recentTxns, setRecentTxns] = useState([]);
   const spending = [
     { l: "Jan", v: 42000 }, { l: "Feb", v: 58000 }, { l: "Mar", v: 35000 },
     { l: "Apr", v: 71000 }, { l: "May", v: 48000 }, { l: "Jun", v: 63000, highlight: true },
   ];
   const [homeReceiveOpen, setHomeReceiveOpen] = useState(false);
-
   useEffect(() => {
     let active = true;
-    wallet.get().then((data) => {
-      if (!active) return;
-      setBalance(data.balance);
-    }).catch(() => {
-      if (!active) return;
-      setBalance(null);
-    });
+    wallet.get().then((data) => { if (active) setBalance(data.balance); }).catch(() => { if (active) setBalance(null); });
+    txApi.getAll().then((data) => {
+      if (active) setRecentTxns(Array.isArray(data) ? data.slice(0, 5) : []);
+    }).catch(() => { if (active) setRecentTxns([]); });
     return () => { active = false; };
   }, []);
   const quickActions = [
-    { icon: "💸", label: "Send",       to: "send"         },
-    { icon: "📥", label: "Receive",    to: "RECEIVE"      },
-    { icon: "💳", label: "Cards",      to: "cards"        },
-    { icon: "📱", label: "Airtime",    to: "airtime"      },
-    { icon: "⭐", label: "Zakat",      to: "zakat"        },
-    { icon: "📦", label: "Data",       to: "airtime"      },
-    { icon: "🎯", label: "Goals",      to: "savings"      },
-    { icon: "🤝", label: "Qard",       to: "qard"         },
-    { icon: "🤖", label: "AI Advisor", to: "ai"           },
-    { icon: "🎁", label: "Rewards",    to: "rewards"      },
-    { icon: "🎓", label: "Scholar.",   to: "scholarship"  },
-    { icon: "📊", label: "Reports",    to: "reports"      },
+    { icon: "send",     label: "Send",       to: "send"         },
+    { icon: "receive",  label: "Receive",    to: "RECEIVE"      },
+    { icon: "card",     label: "Cards",      to: "cards"        },
+    { icon: "phone",    label: "Airtime",    to: "airtime"      },
+    { icon: "star",     label: "Zakat",      to: "zakat"        },
+    { icon: "chart",    label: "Data",       to: "airtime"      },
+    { icon: "target",   label: "Goals",      to: "savings"      },
+    { icon: "community",label: "Qard",       to: "qard"         },
+    { icon: "ai",       label: "AI Advisor", to: "ai"           },
+    { icon: "gift",     label: "Rewards",    to: "rewards"      },
+    { icon: "star",     label: "Scholar.",   to: "scholarship"  },
+    { icon: "chart",    label: "Reports",    to: "reports"      },
   ];
   return (
     <div style={{ paddingBottom: 80 }}>
@@ -752,10 +1111,10 @@ const Home = ({ nav, user = null }) => {
             <div style={{ fontSize: 18, fontWeight: 700, color: C.white }}>{user?.full_name || "NoorPay User"}</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => nav("notifications")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer", position: "relative" }}>
-              🔔<span style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, background: C.amber, borderRadius: "50%" }} />
+            <button onClick={() => nav("notifications")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", position: "relative" }}>
+              <Icon name="bell" size={18} color={C.white} /><span style={{ position: "absolute", top: 4, right: 4, width: 8, height: 8, background: C.amber, borderRadius: "50%" }} />
             </button>
-            <button onClick={() => nav("me")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, cursor: "pointer" }}>👤</button>
+            <button onClick={() => nav("me")} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Icon name="user" size={18} color={C.white} /></button>
           </div>
         </div>
       </div>
@@ -765,16 +1124,18 @@ const Home = ({ nav, user = null }) => {
         <Card style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
             <span style={{ fontSize: 12, color: C.textSub }}>Available Balance</span>
-            <button onClick={() => setBalVis(!balVis)} style={{ background: "none", border: "none", color: C.green, cursor: "pointer", fontSize: 16 }}>{balVis ? "👁" : "🙈"}</button>
+            <button onClick={() => setBalVis(!balVis)} style={{ background: "none", border: "none", color: C.green, cursor: "pointer", fontSize: 16 }}>
+              <Icon name={balVis ? "eye" : "eyeOff"} size={18} color={C.green} />
+            </button>
           </div>
           <div style={{ fontSize: 28, fontWeight: 800, color: C.text, marginBottom: 2 }}>
             {balVis ? (balance !== null ? `₦${Number(balance).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Loading...") : "₦ ••••••"}
           </div>
           <div style={{ fontSize: 12, color: C.textSub }}>Acct: {user?.account_number || "0123456789"} · <span style={{ color: C.green, fontWeight: 600 }}>✅ Shari'ah-Compliant</span></div>
           <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-            <Btn variant="primary" size="sm" icon="💸" onClick={() => nav("send")} style={{ flex: 1, justifyContent: "center" }}>Send</Btn>
-            <Btn variant="outline" size="sm" icon="📥" onClick={() => nav("receive")} style={{ flex: 1, justifyContent: "center" }}>Receive</Btn>
-            <Btn variant="ghost" size="sm" icon="📊" onClick={() => nav("transactions")} style={{ flex: 1, justifyContent: "center" }}>History</Btn>
+            <Btn variant="primary" size="sm" icon="send" onClick={() => nav("send")} style={{ flex: 1, justifyContent: "center" }}>Send</Btn>
+            <Btn variant="outline" size="sm" icon="receive" onClick={() => nav("receive")} style={{ flex: 1, justifyContent: "center" }}>Receive</Btn>
+            <Btn variant="ghost" size="sm" icon="history" onClick={() => nav("transactions")} style={{ flex: 1, justifyContent: "center" }}>History</Btn>
           </div>
         </Card>
       </div>
@@ -786,7 +1147,7 @@ const Home = ({ nav, user = null }) => {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
             {quickActions.map((a, i) => (
               <button key={i} onClick={() => a.to === "RECEIVE" ? setHomeReceiveOpen(true) : nav(a.to)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, background: C.grey100, border: "none", borderRadius: 8, padding: "10px 4px", cursor: "pointer" }}>
-                <span style={{ fontSize: 22 }}>{a.icon}</span>
+                <Icon name={a.icon} size={22} />
                 <span style={{ fontSize: 10, color: C.grey700, fontWeight: 500, textAlign: "center", lineHeight: 1.2 }}>{a.label}</span>
               </button>
             ))}
@@ -803,15 +1164,15 @@ const Home = ({ nav, user = null }) => {
         <Card style={{ marginBottom: 14 }}>
           <SectionHeader title="Savings Goals" sub="3 active goals" action="Manage" onAction={() => nav("savings")} />
           {[
-            { name: "Hajj Fund", saved: 380000, target: 1200000, icon: "🕋" },
-            { name: "Tuition Fees", saved: 85000, target: 200000, icon: "🎓" },
-            { name: "Emergency Fund", saved: 212000, target: 500000, icon: "🛡️" },
+            { name: "Hajj Fund", saved: 380000, target: 1200000, icon: "mosque" },
+            { name: "Tuition Fees", saved: 85000, target: 200000, icon: "school" },
+            { name: "Emergency Fund", saved: 212000, target: 500000, icon: "shield" },
           ].map((g, i) => {
             const pct = Math.round((g.saved / g.target) * 100);
             return (
               <div key={i} style={{ marginBottom: i < 2 ? 12 : 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 13 }}>{g.icon} {g.name}</span>
+                  <span style={{ fontSize: 13 }}><Icon name={g.icon} size={18} /> {g.name}</span>
                   <span style={{ fontSize: 12, color: C.textSub }}>₦{g.saved.toLocaleString()} / ₦{g.target.toLocaleString()}</span>
                 </div>
                 <Progress pct={pct} color={i === 0 ? C.green : i === 1 ? C.blue : C.amber} />
@@ -826,13 +1187,16 @@ const Home = ({ nav, user = null }) => {
           <div style={{ padding: "12px 14px" }}>
             <SectionHeader title="Recent Transactions" action="View all" onAction={() => nav("transactions")} />
           </div>
-          {[
-            { icon: "💰", title: "Salary Credit",      sub: "GTBank Payroll",    amt: "+₦250,000", col: C.green  },
-            { icon: "💸", title: "Transfer to Ahmad",  sub: "NoorPay Transfer",   amt: "-₦15,000",  col: C.red    },
-            { icon: "📱", title: "MTN Data — 5GB",     sub: "Bills & Airtime",   amt: "-₦2,500",   col: C.red    },
-            { icon: "⭐", title: "Zakat Payment",       sub: "Islamic Finance",   amt: "-₦8,000",   col: C.amber  },
-            { icon: "💰", title: "Qard Repayment",      sub: "Community Finance", amt: "+₦10,000",  col: C.green  },
-          ].map((tx, i) => <ListItem key={i} icon={tx.icon} title={tx.title} sub={tx.sub} right={tx.amt} rightColor={tx.col} />)}
+          {recentTxns.length === 0 ? (
+            <div style={{ padding: "0 14px 14px", fontSize: 12, color: C.textSub }}>No recent transactions yet.</div>
+          ) : recentTxns.map((tx, i) => {
+            const isIncoming = tx.type === "credit" || tx.type === "income";
+            const icon = tx.type === "transfer" ? "send" : tx.type === "airtime" ? "phone" : tx.type === "data" ? "package" : tx.type === "zakat" ? "star" : tx.type === "qard" ? "community" : "wallet";
+            const title = tx.description || "Transaction";
+            const sub = tx.recipient_name || tx.bank_name || new Date(tx.created_at).toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+            const amt = `${isIncoming ? "+" : "-"}${formatNaira(tx.amount)}`;
+            return <ListItem key={tx.id || i} icon={icon} title={title} sub={sub} right={amt} rightColor={isIncoming ? C.green : C.red} />;
+          })}
         </Card>
       </div>
       <ReceiveModal open={homeReceiveOpen} onClose={() => setHomeReceiveOpen(false)} />
@@ -843,24 +1207,64 @@ const Home = ({ nav, user = null }) => {
 // ── Finance / Budget page ─────────────────────────────────────────
 const Finance = ({ nav }) => {
   const [tab, setTab] = useState("budget");
-  const expenses = [
-    { label: "Food & Dining", v: 28000, c: C.amber },
-    { label: "Transport",     v: 15000, c: C.blue  },
-    { label: "Housing/Rent",  v: 50000, c: C.green },
-    { label: "Utilities",     v: 8000,  c: C.purple},
-    { label: "Education",     v: 12000, c: C.red   },
-  ];
-  const budgets = [
-    { name: "Food & Dining",  budgeted: 35000, spent: 28000, c: C.amber  },
-    { name: "Transport",      budgeted: 20000, spent: 15000, c: C.blue   },
-    { name: "Housing",        budgeted: 50000, spent: 50000, c: C.green  },
-    { name: "Entertainment",  budgeted: 10000, spent: 13500, c: C.red    },
-    { name: "Education",      budgeted: 15000, spent: 12000, c: C.purple },
-  ];
+  const [summary, setSummary] = useState(null);
+  const [budgetRows, setBudgetRows] = useState([]);
+  const [savingsSummary, setSavingsSummary] = useState(null);
+  const [savingsGoals, setSavingsGoals] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const month = new Date().getMonth() + 1;
+    const year = new Date().getFullYear();
+    Promise.all([
+      budgets.getSummary(month, year),
+      budgets.getAll(month, year),
+      savings.getSummary(),
+      savings.getAll(),
+    ])
+      .then(([summaryData, rows, savingsData, goals]) => {
+        setSummary(summaryData);
+        setBudgetRows(Array.isArray(rows) ? rows : []);
+        setSavingsSummary(savingsData || null);
+        setSavingsGoals(Array.isArray(goals) ? goals : []);
+      })
+      .catch(() => {
+        setSummary(null);
+        setBudgetRows([]);
+        setSavingsSummary(null);
+        setSavingsGoals([]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const colorFor = (category = "") => {
+    const c = category.toLowerCase();
+    if (c.includes("food") || c.includes("dining")) return C.amber;
+    if (c.includes("transport")) return C.blue;
+    if (c.includes("housing") || c.includes("rent")) return C.green;
+    if (c.includes("education")) return C.purple;
+    if (c.includes("health") || c.includes("utility")) return C.red;
+    return C.grey500;
+  };
+
+  const expenses = budgetRows.map((b) => ({ label: b.category || "Other", v: Number(b.spent || 0), c: colorFor(b.category) }));
+  const budgetsData = budgetRows.map((b) => ({ name: b.category || "Other", budgeted: Number(b.monthly_limit || 0), spent: Number(b.spent || 0), c: colorFor(b.category) }));
+  const goalTypeLabel = (type = "") => ({
+    hajj: "Hajj Target",
+    emergency: "Emergency",
+    education: "Education",
+    laptop: "Personal",
+    business: "Business",
+    marriage: "Marriage",
+    house: "Housing",
+    car: "Vehicle",
+    custom: "Custom Goal",
+  }[type] || "Goal");
+  const goalIcon = (type = "") => ({ hajj: "🕋", emergency: "🛡️", education: "🎓", laptop: "💻", business: "💼", marriage: "💍", house: "🏠", car: "🚗", custom: "🎯" }[type] || "🎯");
+
   return (
     <div style={{ paddingBottom: 80 }}>
       <PageHeader title="Finance Hub" sub="Budget · Expenses · Islamic Finance" />
-      {/* Tab bar */}
       <div style={{ background: C.white, display: "flex", borderBottom: `1px solid ${C.grey200}` }}>
         {[["budget", "Budget"], ["savings", "Savings"], ["islamic", "Islamic"]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{
@@ -874,38 +1278,44 @@ const Finance = ({ nav }) => {
       <div style={{ padding: 16 }}>
         {tab === "budget" && <>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
-            <Stat label="Income"  value="₦350k" color={C.green} />
-            <Stat label="Spent"   value="₦113k" color={C.red}   />
-            <Stat label="Balance" value="₦237k" color={C.blue}  />
+            <Stat label="Income"  value={loading ? "..." : formatNaira(summary?.total_income || 0)} color={C.green} />
+            <Stat label="Spent"   value={loading ? "..." : formatNaira(summary?.total_spent || 0)} color={C.red}   />
+            <Stat label="Balance" value={loading ? "..." : formatNaira(summary?.net_savings || 0)} color={C.blue}  />
           </div>
           <Card style={{ marginBottom: 14 }}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Expense Breakdown</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <Donut slices={expenses.map(e => ({ v: e.v, c: e.c }))} />
-              <div style={{ flex: 1 }}>
-                {expenses.map((e, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: 2, background: e.c }} />
-                      <span style={{ fontSize: 11, color: C.text }}>{e.label}</span>
+            {expenses.length === 0 ? (
+              <div style={{ fontSize: 12, color: C.textSub }}>No category spending data yet.</div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <Donut slices={expenses.map(e => ({ v: e.v, c: e.c }))} />
+                <div style={{ flex: 1 }}>
+                  {expenses.map((e, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 2, background: e.c }} />
+                        <span style={{ fontSize: 11, color: C.text }}>{e.label}</span>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600 }}>{formatNaira(e.v)}</span>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 600 }}>₦{e.v.toLocaleString()}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </Card>
           <Card>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Budget Performance</div>
-            {budgets.map((b, i) => {
-              const pct = Math.round((b.spent / b.budgeted) * 100);
+            {budgetsData.length === 0 ? (
+              <div style={{ fontSize: 12, color: C.textSub }}>No budgets created yet.</div>
+            ) : budgetsData.map((b, i) => {
+              const pct = b.budgeted ? Math.round((b.spent / b.budgeted) * 100) : 0;
               return (
                 <div key={i} style={{ marginBottom: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                     <span style={{ fontSize: 13, color: C.text }}>{b.name}</span>
                     <div>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: b.spent > b.budgeted ? C.red : C.text }}>₦{b.spent.toLocaleString()}</span>
-                      <span style={{ fontSize: 11, color: C.textSub }}> / ₦{b.budgeted.toLocaleString()}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: b.spent > b.budgeted ? C.red : C.text }}>{formatNaira(b.spent)}</span>
+                      <span style={{ fontSize: 11, color: C.textSub }}> / {formatNaira(b.budgeted)}</span>
                       {b.spent > b.budgeted && <Badge color={C.red} style={{ marginLeft: 4 }}>Over</Badge>}
                     </div>
                   </div>
@@ -920,37 +1330,37 @@ const Finance = ({ nav }) => {
         {tab === "savings" && <>
           <Card style={{ marginBottom: 14, background: C.greenPale, border: `1px solid ${C.green}40` }}>
             <div style={{ fontSize: 12, color: C.textSub, marginBottom: 2 }}>Total Savings</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: C.green }}>₦1,202,000</div>
-            <div style={{ fontSize: 12, color: C.textSub, marginTop: 2 }}>Across 3 goals · ₦45,000 auto-saved this month</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: C.green }}>{loading ? "..." : formatNaira(savingsSummary?.total_saved || 0)}</div>
+            <div style={{ fontSize: 12, color: C.textSub, marginTop: 2 }}>{loading ? "Loading" : `Across ${savingsGoals.length} goals`}</div>
           </Card>
-          {[
-            { name: "Hajj Savings",    target: 1200000, saved: 380000,  type: "Hajj Target",  deadline: "Jan 2027", icon: "🕋", c: C.green },
-            { name: "Tuition Fees",    target: 200000,  saved: 85000,   type: "Education",    deadline: "Sep 2025", icon: "🎓", c: C.blue  },
-            { name: "Emergency Fund",  target: 500000,  saved: 212000,  type: "Emergency",    deadline: "Dec 2025", icon: "🛡️", c: C.amber },
-            { name: "Laptop Purchase", target: 350000,  saved: 120000,  type: "Personal",     deadline: "Mar 2026", icon: "💻", c: C.purple},
-          ].map((g, i) => {
-            const pct = Math.round((g.saved / g.target) * 100);
+          {loading ? (
+            <div style={{ fontSize: 13, color: C.textSub, padding: 8 }}>Loading your savings goals…</div>
+          ) : savingsGoals.length === 0 ? (
+            <div style={{ fontSize: 13, color: C.textSub, padding: 8 }}>No savings goals yet. Start one to build good habits.</div>
+          ) : savingsGoals.map((g, i) => {
+            const pct = Math.round((Number(g.saved_amount || 0) / Math.max(Number(g.target_amount || 0), 1)) * 100);
+            const color = i % 2 === 0 ? C.green : i % 3 === 1 ? C.blue : C.amber;
             return (
-              <Card key={i} style={{ marginBottom: 10 }}>
+              <Card key={g.id || i} style={{ marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{g.icon} {g.name}</div>
-                    <Badge color={g.c}>{g.type}</Badge>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{goalIcon(g.goal_type)} {g.title}</div>
+                    <Badge color={color}>{goalTypeLabel(g.goal_type)}</Badge>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: g.c }}>₦{g.saved.toLocaleString()}</div>
-                    <div style={{ fontSize: 11, color: C.textSub }}>of ₦{g.target.toLocaleString()}</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color }}>{formatNaira(g.saved_amount || 0)}</div>
+                    <div style={{ fontSize: 11, color: C.textSub }}>of {formatNaira(g.target_amount || 0)}</div>
                   </div>
                 </div>
-                <Progress pct={pct} color={g.c} h={10} />
+                <Progress pct={pct} color={color} h={10} />
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-                  <span style={{ fontSize: 11, color: C.textSub }}>Due: {g.deadline}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: g.c }}>{pct}% done</span>
+                  <span style={{ fontSize: 11, color: C.textSub }}>{g.deadline ? `Due: ${new Date(g.deadline).toLocaleDateString("en-NG", { month: "short", day: "numeric", year: "numeric" })}` : "No deadline"}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color }}>{pct}% done</span>
                 </div>
               </Card>
             );
           })}
-          <Btn variant="primary" icon="🎯" full>Create New Savings Goal</Btn>
+          <Btn variant="primary" icon="target" full>Create New Savings Goal</Btn>
         </>}
 
         {tab === "islamic" && <>
@@ -963,10 +1373,10 @@ const Finance = ({ nav }) => {
             </div>
           </div>
           {[
-            { name: "Mudarabah Investment", desc: "Profit-sharing partnership account", badge: "12–18% p.a.", icon: "📈", c: C.green  },
-            { name: "Musharakah Fund",      desc: "Joint venture investment pool",     badge: "10–15% p.a.", icon: "🤝", c: C.blue   },
-            { name: "Murabahah Finance",    desc: "Cost-plus Shari'ah financing",      badge: "Fixed markup", icon: "🏦", c: C.amber  },
-            { name: "Waqf Endowment",       desc: "Perpetual charitable endowment",    badge: "Community",    icon: "🕌", c: C.purple },
+            { name: "Mudarabah Investment", desc: "Profit-sharing partnership account", badge: "12–18% p.a.", icon: "chart", c: C.green  },
+            { name: "Musharakah Fund",      desc: "Joint venture investment pool",     badge: "10–15% p.a.", icon: "community", c: C.blue   },
+            { name: "Murabahah Finance",    desc: "Cost-plus Shari'ah financing",      badge: "Fixed markup", icon: "bank", c: C.amber  },
+            { name: "Waqf Endowment",       desc: "Perpetual charitable endowment",    badge: "Community",    icon: "mosque", c: C.purple },
           ].map((p, i) => (
             <Card key={i} style={{ marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1035,13 +1445,13 @@ const QardHasan = ({ nav }) => {
             <div style={{ background: C.greenPale, borderRadius: 6, padding: 10, fontSize: 12, color: C.grey700, marginBottom: 12 }}>
               <strong>Quranic basis:</strong> "Who is it that would loan Allah a goodly loan so He may multiply it for him many times over?" — Al-Baqarah 2:245
             </div>
-            <Btn variant="primary" full icon="📋" onClick={() => setModal(true)}>Apply for Qard Hasan Loan</Btn>
+            <Btn variant="primary" full icon="clipboard" onClick={() => setModal(true)}>Apply for Qard Hasan Loan</Btn>
           </Card>
           <Card>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Eligible Purposes</div>
             {["Education & tuition fees", "Medical emergencies", "Small business startup", "Housing support", "Agricultural needs", "Community welfare"].map((p, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: i < 5 ? `1px solid ${C.grey100}` : "none" }}>
-                <span style={{ color: C.green }}>✓</span>
+                <Icon name="check" size={16} color={C.green} />
                 <span style={{ fontSize: 13, color: C.text }}>{p}</span>
               </div>
             ))}
@@ -1117,19 +1527,58 @@ const QardHasan = ({ nav }) => {
 const Scholarship = ({ nav }) => {
   const [modal, setModal] = useState(false);
   const [toast, setToast] = useState(null);
-  const scholarships = [
-    { name: "Federal Government Scholarship", amount: "₦150,000/yr",   deadline: "30 Aug 2025", status: "Applied",    progress: 60, icon: "🇳🇬" },
-    { name: "MTN Foundation Scholarship",      amount: "₦120,000/yr",   deadline: "15 Sep 2025", status: "In Review",  progress: 80, icon: "📡" },
-    { name: "Islamic Development Bank Grant",  amount: "USD 5,000",     deadline: "01 Oct 2025", status: "Not Applied", progress: 0, icon: "🕌" },
-    { name: "Dangote Foundation Education",    amount: "₦200,000",      deadline: "20 Jul 2025", status: "Not Applied", progress: 0, icon: "🏆" },
-  ];
-  const statusColor = { "Applied": C.blue, "In Review": C.amber, "Not Applied": C.grey500, "Awarded": C.green };
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ name: "", organization: "", amount: "", deadline: "", status: "not_applied", progress: "0", notes: "", link: "" });
+
+  const resetForm = () => setForm({ name: "", organization: "", amount: "", deadline: "", status: "not_applied", progress: "0", notes: "", link: "" });
+  const loadScholarships = () => {
+    setLoading(true);
+    scholarshipApi.getAll()
+      .then((data) => setRows(Array.isArray(data) ? data : []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadScholarships();
+  }, []);
+
+  const statusColor = { applied: C.blue, in_review: C.amber, not_applied: C.grey500, awarded: C.green, rejected: C.red };
+  const statusLabel = (value = "") => ({ applied: "Applied", in_review: "In Review", not_applied: "Not Applied", awarded: "Awarded", rejected: "Rejected" }[value] || value);
+
+  const handleCreate = async () => {
+    if (!form.name.trim()) {
+      setToast({ msg: "Please enter a scholarship name.", type: "error" });
+      return;
+    }
+    try {
+      const payload = {
+        name: form.name,
+        organization: form.organization,
+        amount: form.amount,
+        deadline: form.deadline || null,
+        status: form.status,
+        progress: Number(form.progress || 0),
+        notes: form.notes,
+        link: form.link,
+      };
+      const created = await scholarshipApi.create(payload);
+      setRows((prev) => [created, ...prev]);
+      setModal(false);
+      resetForm();
+      setToast({ msg: "Scholarship added to tracker.", type: "success" });
+    } catch (e) {
+      setToast({ msg: e?.detail || "Unable to save scholarship.", type: "error" });
+    }
+  };
+
   return (
     <div style={{ paddingBottom: 80 }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <PageHeader title="Scholarship & Grants" sub="Track your applications & deadlines" onBack={() => nav("home")}>
         <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-          {[{ l: "4", sub: "Tracked" }, { l: "2", sub: "Applied" }, { l: "₦270k", sub: "Potential" }].map((s, i) => (
+          {[{ l: String(rows.length), sub: "Tracked" }, { l: String(rows.filter((s) => s.status === "applied").length), sub: "Applied" }, { l: "Live", sub: "Backend sync" }].map((s, i) => (
             <div key={i} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 8, padding: "8px 14px" }}>
               <div style={{ fontSize: 16, fontWeight: 800, color: C.white }}>{s.l}</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)" }}>{s.sub}</div>
@@ -1142,31 +1591,35 @@ const Scholarship = ({ nav }) => {
           <div style={{ fontWeight: 700, fontSize: 15 }}>My Scholarships</div>
           <Btn variant="primary" size="sm" icon="+" onClick={() => setModal(true)}>Add New</Btn>
         </div>
-        {scholarships.map((s, i) => (
-          <Card key={i} style={{ marginBottom: 10 }}>
+        {loading ? (
+          <div style={{ fontSize: 13, color: C.textSub, padding: 8 }}>Loading scholarships…</div>
+        ) : rows.length === 0 ? (
+          <div style={{ fontSize: 13, color: C.textSub, padding: 8 }}>No scholarship entries yet.</div>
+        ) : rows.map((s, i) => (
+          <Card key={s.id || i} style={{ marginBottom: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
               <div style={{ display: "flex", gap: 10 }}>
-                <span style={{ fontSize: 24 }}>{s.icon}</span>
+                <span style={{ fontSize: 24 }}>{s.organization ? "🎓" : "📄"}</span>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</div>
-                  <div style={{ fontSize: 12, color: C.textSub }}>{s.amount}</div>
+                  <div style={{ fontSize: 12, color: C.textSub }}>{s.organization || "No organization added"}</div>
                 </div>
               </div>
-              <Badge color={statusColor[s.status]}>{s.status}</Badge>
+              <Badge color={statusColor[s.status] || C.grey500}>{statusLabel(s.status)}</Badge>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 11, color: C.red, fontWeight: 600 }}>📅 Deadline: {s.deadline}</span>
+              <span style={{ fontSize: 11, color: C.red, fontWeight: 600 }}>📅 {s.deadline ? new Date(s.deadline).toLocaleDateString("en-NG", { month: "short", day: "numeric", year: "numeric" }) : "No deadline"}</span>
             </div>
-            {s.progress > 0 && <>
-              <Progress pct={s.progress} color={s.progress >= 80 ? C.green : C.amber} />
+            <div style={{ fontSize: 12, color: C.textSub, marginBottom: 6 }}>{s.amount || "Amount not set"}</div>
+            {Number(s.progress || 0) > 0 && <>
+              <Progress pct={Number(s.progress || 0)} color={Number(s.progress || 0) >= 80 ? C.green : C.amber} />
               <div style={{ fontSize: 11, color: C.textSub, marginTop: 3 }}>Application {s.progress}% complete</div>
             </>}
-            {s.status === "Not Applied" && (
-              <Btn variant="outline" size="sm" style={{ marginTop: 8 }} onClick={() => setToast({ msg: "Scholarship added to your tracker!", type: "success" })}>Start Application</Btn>
+            {s.status === "not_applied" && (
+              <Btn variant="outline" size="sm" style={{ marginTop: 8 }} onClick={() => setToast({ msg: "Scholarship is ready for application.", type: "success" })}>Start Application</Btn>
             )}
           </Card>
         ))}
-        {/* Checklist */}
         <Card style={{ marginTop: 8 }}>
           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>📋 Required Documents Checklist</div>
           {["Admission letter / Student ID", "Academic transcripts", "WAEC / NECO results", "Birth certificate", "Guarantor letter", "Bank statement (last 3 months)", "Letter of recommendation"].map((d, i) => (
@@ -1178,16 +1631,19 @@ const Scholarship = ({ nav }) => {
         </Card>
       </div>
       <Modal open={modal} onClose={() => setModal(false)} title="Add Scholarship / Grant">
-        <Inp label="Scholarship name" value="" onChange={() => {}} placeholder="e.g. CBN Education Fund" />
-        <Inp label="Amount offered" value="" onChange={() => {}} placeholder="e.g. ₦200,000" />
-        <Inp label="Application deadline" type="date" value="" onChange={() => {}} placeholder="" />
-        <Select label="Current status" value="Not Applied" onChange={() => {}} options={[
-          { value: "Not Applied", label: "Not Applied Yet" },
-          { value: "Applied",     label: "Applied" },
-          { value: "In Review",   label: "Under Review" },
-          { value: "Awarded",     label: "Awarded" },
+        <Inp label="Scholarship name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="e.g. CBN Education Fund" />
+        <Inp label="Organization" value={form.organization} onChange={(v) => setForm((f) => ({ ...f, organization: v }))} placeholder="e.g. MTN Foundation" />
+        <Inp label="Amount offered" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} placeholder="e.g. ₦200,000" />
+        <Inp label="Application deadline" type="date" value={form.deadline} onChange={(v) => setForm((f) => ({ ...f, deadline: v }))} placeholder="" />
+        <Inp label="Progress (%)" type="number" value={form.progress} onChange={(v) => setForm((f) => ({ ...f, progress: v }))} placeholder="0" />
+        <Inp label="Notes" value={form.notes} onChange={(v) => setForm((f) => ({ ...f, notes: v }))} placeholder="Optional note" />
+        <Select label="Current status" value={form.status} onChange={(v) => setForm((f) => ({ ...f, status: v }))} options={[
+          { value: "not_applied", label: "Not Applied Yet" },
+          { value: "applied", label: "Applied" },
+          { value: "in_review", label: "Under Review" },
+          { value: "awarded", label: "Awarded" },
         ]} />
-        <Btn full variant="primary" onClick={() => { setModal(false); setToast({ msg: "Scholarship added to tracker!", type: "success" }); }}>Add to Tracker</Btn>
+        <Btn full variant="primary" onClick={handleCreate}>Add to Tracker</Btn>
       </Modal>
     </div>
   );
@@ -1195,24 +1651,52 @@ const Scholarship = ({ nav }) => {
 
 // ── Student Finance Module ────────────────────────────────────────
 const StudentFinance = ({ nav }) => {
-  const expenses = [
-    { name: "Tuition Fees",         spent: 85000, budget: 200000, icon: "🎓", c: C.blue   },
-    { name: "Hostel / Accommodation",spent: 45000, budget: 60000,  icon: "🏠", c: C.green  },
-    { name: "Food & Feeding",        spent: 18000, budget: 25000,  icon: "🍱", c: C.amber  },
-    { name: "Textbooks & Materials", spent: 12000, budget: 15000,  icon: "📚", c: C.purple },
-    { name: "Internet & Data",       spent: 5000,  budget: 6000,   icon: "📶", c: C.blue   },
-    { name: "Research & FYP",        spent: 22000, budget: 30000,  icon: "🔬", c: C.red    },
-    { name: "Certification Exams",   spent: 0,     budget: 50000,  icon: "📜", c: C.amber  },
-    { name: "Transport",             spent: 8000,  budget: 10000,  icon: "🚌", c: C.green  },
-  ];
+  const [summary, setSummary] = useState(null);
+  const [expenseRows, setExpenseRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const month = new Date().getMonth() + 1;
+    const year = new Date().getFullYear();
+    Promise.all([
+      studentFinance.getSummary(month, year),
+      studentFinance.getExpenses(month, year),
+    ])
+      .then(([summaryData, expenseData]) => {
+        setSummary(summaryData || null);
+        setExpenseRows(Array.isArray(expenseData) ? expenseData : []);
+      })
+      .catch(() => {
+        setSummary(null);
+        setExpenseRows([]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const categoryLabel = (category = "") => ({
+    tuition: "Tuition Fees",
+    hostel: "Hostel / Accommodation",
+    food: "Food & Feeding",
+    textbooks: "Textbooks & Materials",
+    internet: "Internet & Data",
+    research: "Research & FYP",
+    certification: "Certification Exams",
+    transport: "Transport",
+    laptop: "Laptop / Tech",
+    other: "Other",
+  }[category] || "Other");
+  const iconFor = (category = "") => ({ tuition: "🎓", hostel: "🏠", food: "🍱", textbooks: "📚", internet: "📶", research: "🔬", certification: "📜", transport: "🚌", laptop: "💻", other: "🧾" }[category] || "🧾");
+  const colorFor = (category = "") => ({ tuition: C.blue, hostel: C.green, food: C.amber, textbooks: C.purple, internet: C.blue, research: C.red, certification: C.amber, transport: C.green, laptop: C.purple, other: C.grey500 }[category] || C.grey500);
+  const usedPct = summary?.allowance ? Math.round((Number(summary.total_spent || 0) / Math.max(Number(summary.allowance || 1), 1)) * 100) : 0;
+
   return (
     <div style={{ paddingBottom: 80 }}>
       <PageHeader title="Student Finance" sub="Manage your academic expenses" onBack={() => nav("home")}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 12 }}>
           {[
-            { l: "₦195k", sub: "Total spent", c: C.white },
-            { l: "₦201k", sub: "Remaining",   c: "#86efac" },
-            { l: "49%",   sub: "Budget used", c: "#fde68a" },
+            { l: loading ? "..." : formatNaira(summary?.total_spent || 0), sub: "Total spent", c: C.white },
+            { l: loading ? "..." : formatNaira(summary?.remaining || 0), sub: "Remaining", c: "#86efac" },
+            { l: loading ? "..." : `${usedPct}%`, sub: "Budget used", c: "#fde68a" },
           ].map((s, i) => (
             <div key={i} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 8, padding: "8px 10px" }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.l}</div>
@@ -1224,24 +1708,29 @@ const StudentFinance = ({ nav }) => {
       <div style={{ padding: 16 }}>
         <Card style={{ marginBottom: 14, borderLeft: `4px solid ${C.blue}` }}>
           <div style={{ fontSize: 13, color: C.textSub, marginBottom: 2 }}>Monthly Allowance</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: C.text }}>₦45,000.00</div>
-          <Progress pct={65} color={C.blue} h={6} />
-          <div style={{ fontSize: 11, color: C.textSub, marginTop: 3 }}>₦29,250 remaining this month</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: C.text }}>{loading ? "..." : formatNaira(summary?.allowance || 0)}</div>
+          <Progress pct={usedPct || 0} color={C.blue} h={6} />
+          <div style={{ fontSize: 11, color: C.textSub, marginTop: 3 }}>{loading ? "Loading" : `${formatNaira(summary?.remaining || 0)} remaining this month`}</div>
         </Card>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Academic Expense Tracker</div>
-        {expenses.map((e, i) => {
-          const pct = Math.round((e.spent / e.budget) * 100);
+        {loading ? (
+          <div style={{ fontSize: 13, color: C.textSub, padding: 8 }}>Loading expense tracker…</div>
+        ) : expenseRows.length === 0 ? (
+          <div style={{ fontSize: 13, color: C.textSub, padding: 8 }}>No expenses logged for this month yet.</div>
+        ) : expenseRows.map((e, i) => {
+          const pct = Number(e.budget || 0) ? Math.round((Number(e.amount || 0) / Number(e.budget || 1)) * 100) : 0;
+          const remaining = Number(e.budget || 0) - Number(e.amount || 0);
           return (
-            <Card key={i} style={{ marginBottom: 10 }}>
+            <Card key={e.id || i} style={{ marginBottom: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 20 }}>{e.icon}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{e.name}</span>
+                  <span style={{ fontSize: 20 }}>{iconFor(e.category)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{categoryLabel(e.category)}</span>
                 </div>
-                <span style={{ fontSize: 12, color: e.spent > e.budget ? C.red : C.textSub }}>₦{e.spent.toLocaleString()} / ₦{e.budget.toLocaleString()}</span>
+                <span style={{ fontSize: 12, color: Number(e.amount || 0) > Number(e.budget || 0) ? C.red : C.textSub }}>{formatNaira(e.amount || 0)} / {formatNaira(e.budget || 0)}</span>
               </div>
-              <Progress pct={pct || 0} color={e.spent > e.budget ? C.red : e.c} />
-              <div style={{ fontSize: 11, color: C.textSub, marginTop: 3 }}>{pct}% used · ₦{(e.budget - e.spent).toLocaleString()} remaining</div>
+              <Progress pct={pct || 0} color={Number(e.amount || 0) > Number(e.budget || 0) ? C.red : colorFor(e.category)} />
+              <div style={{ fontSize: 11, color: C.textSub, marginTop: 3 }}>{pct}% used · {formatNaira(remaining)} remaining</div>
             </Card>
           );
         })}
@@ -1314,10 +1803,10 @@ const Community = ({ nav }) => {
             </div>
           </Card>
           {[
-            { name: "Masjid Construction Fund", target: "₦5M",    raised: "₦2.1M", icon: "🕌" },
-            { name: "Quran Printing Waqf",       target: "₦1M",    raised: "₦780k", icon: "📖" },
-            { name: "Islamic School Endowment",  target: "₦10M",   raised: "₦3.4M", icon: "🎓" },
-            { name: "Orphan Welfare Waqf",       target: "₦3M",    raised: "₦1.1M", icon: "🌙" },
+            { name: "Masjid Construction Fund", target: "₦5M",    raised: "₦2.1M", icon: "mosque" },
+            { name: "Quran Printing Waqf",       target: "₦1M",    raised: "₦780k", icon: "book" },
+            { name: "Islamic School Endowment",  target: "₦10M",   raised: "₦3.4M", icon: "school" },
+            { name: "Orphan Welfare Waqf",       target: "₦3M",    raised: "₦1.1M", icon: "moon" },
           ].map((w, i) => (
             <Card key={i} style={{ marginBottom: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -1350,7 +1839,7 @@ const Community = ({ nav }) => {
               <div style={{ fontSize: 11, color: C.textSub, marginTop: 6 }}>💬 {f.replies} replies · 👁 {f.views} views</div>
             </Card>
           ))}
-          <Btn variant="primary" icon="✍️" full>Start a Discussion</Btn>
+          <Btn variant="primary" icon="write" full>Start a Discussion</Btn>
         </>}
       </div>
     </div>
@@ -1384,9 +1873,9 @@ const LearningHub = ({ nav }) => {
       </div>
       <div style={{ padding: 16 }}>
         {tab === "articles" && articles.map((a, i) => (
-          <Card key={i} style={{ marginBottom: 10 }}>
+            <Card key={i} style={{ marginBottom: 10 }}>
             <div style={{ display: "flex", gap: 12 }}>
-              <span style={{ fontSize: 28, flexShrink: 0 }}>{a.emoji}</span>
+              <Icon name={a.emoji} size={28} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.4, marginBottom: 6 }}>{a.title}</div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -1466,7 +1955,7 @@ const ZakatModule = ({ nav }) => {
               <span style={{ fontSize: 13, fontWeight: 600 }}>2.5%</span>
             </div>
           </div>
-          <Btn full variant="primary" icon="🧮" onClick={calculate}>Calculate Zakat</Btn>
+          <Btn full variant="primary" icon="calculator" onClick={calculate}>Calculate Zakat</Btn>
         </Card>
 
         {result && (
@@ -1586,7 +2075,7 @@ const ReceiveModal = ({ open, onClose }) => {
           </div>
           <div style={{ fontSize: 13, color: C.text, marginTop: 4, fontWeight: 600 }}>Abdurkabir Mardhiyyah · NoorPay</div>
         </Card>
-        <Btn full variant="primary" icon="📤">Share Payment Link</Btn>
+        <Btn full variant="primary" icon="share">Share Payment Link</Btn>
       </div>
     </Modal>
   );
@@ -1620,14 +2109,15 @@ const RewardsScreen = ({ nav }) => {
   ];
 
   const redeemItems = [
-    { title: "₦500 Airtime",        pts: 500,  icon: "📱", cat: "Airtime"  },
-    { title: "₦1,000 Cashback",     pts: 1000, icon: "💵", cat: "Cashback" },
-    { title: "Free Bank Transfer",   pts: 200,  icon: "🏦", cat: "Transfer" },
-    { title: "Zakat Donation",       pts: 800,  icon: "⭐", cat: "Charity"  },
-    { title: "₦2,000 Data Bundle",  pts: 1500, icon: "📶", cat: "Data"     },
-    { title: "Priority Support",     pts: 300,  icon: "🎯", cat: "Service"  },
-    { title: "₦200 Sadaqah Donate", pts: 200,  icon: "🌙", cat: "Charity"  },
-    { title: "Scholarship Boost",    pts: 400,  icon: "🎓", cat: "Education"},
+    { title: "₦500 Airtime",        pts: 500,  icon: "phone", cat: "Airtime"  },
+    { title: "₦1,000 Cashback",     pts: 1000, icon: "wallet", cat: "Cashback" },
+    { title: "Free Bank Transfer",   pts: 200,  icon: "bank", cat: "Transfer" },
+    { title: "Zakat Donation",       pts: 800,  icon: "star", cat: "Charity"  },
+    { title: "₦2,000 Data Bundle",  pts: 1500, icon: "package", cat: "Data"     },
+    { title: "Priority Support",     pts: 300,  icon: "help", cat: "Service"  },
+    { title: "₦200 Sadaqah Donate", pts: 200,  icon: "moon", cat: "Charity"  },
+    { title: "Scholarship Boost",    pts: 400,  icon: "school", cat: "Education"},
+
   ];
 
   return (
@@ -1655,7 +2145,7 @@ const RewardsScreen = ({ nav }) => {
       <div style={{ display: "flex", gap: 8, padding: "14px 14px 0", overflowX: "auto" }}>
         {tiers.map((t, i) => (
           <div key={i} style={{ flex: "0 0 auto", background: current.tier === t.name ? t.color + "15" : C.white, border: `2px solid ${current.tier === t.name ? t.color : C.grey200}`, borderRadius: 10, padding: "10px 14px", textAlign: "center", minWidth: 78 }}>
-            <div style={{ fontSize: 22 }}>{t.icon}</div>
+            <Icon name={t.icon} size={22} />
             <div style={{ fontSize: 11, fontWeight: 700, color: current.tier === t.name ? t.color : C.textSub, marginTop: 3 }}>{t.name}</div>
             <div style={{ fontSize: 9, color: C.textSub }}>{t.pts.toLocaleString()}+ pts</div>
           </div>
@@ -1691,7 +2181,7 @@ const RewardsScreen = ({ nav }) => {
               { ic: "🎓", l: "Track scholarship",      v: "50 pts added"      },
             ].map((e, i, arr) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: i < arr.length - 1 ? `1px solid ${C.grey100}` : "none" }}>
-                <span style={{ fontSize: 20, flexShrink: 0 }}>{e.ic}</span>
+                <Icon name={e.ic} size={20} />
                 <span style={{ flex: 1, fontSize: 13, color: C.text }}>{e.l}</span>
                 <Badge color={C.amber}>{e.v}</Badge>
               </div>
@@ -1705,7 +2195,7 @@ const RewardsScreen = ({ nav }) => {
               <span style={{ fontWeight: 800, fontSize: 18, color: C.green, letterSpacing: 3 }}>AMAPA-7823</span>
               <button onClick={() => setToast({ msg: "Referral code copied!", type: "success" })} style={{ background: C.green + "18", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", fontSize: 12, color: C.green }}>Copy</button>
             </div>
-            <Btn full variant="primary" icon="📤">Share Referral Code</Btn>
+            <Btn full variant="primary" icon="share">Share Referral Code</Btn>
           </Card>
         </>}
 
@@ -1896,11 +2386,10 @@ const SecurityScreen = ({ nav }) => {
   const [newPin, setNewPin]     = useState("");
   const [newPin2, setNewPin2]   = useState("");
 
-  const sessions = [
-    { dev: "iPhone 14 Pro — Safari",  loc: "Lagos, Nigeria",  time: "Now (Current)", active: true  },
-    { dev: "Chrome on Windows",        loc: "Abuja, Nigeria",  time: "2 days ago",    active: false },
-    { dev: "Samsung Galaxy S23",       loc: "Lagos, Nigeria",  time: "5 days ago",    active: false },
-  ];
+  const [sessions, setSessions] = useState([]);
+  useEffect(() => {
+    auth.getSessions().then((data) => setSessions(Array.isArray(data) ? data : [])).catch(() => setSessions([]));
+  }, []);
 
   const Toggle = ({ on, onToggle, label, sub }) => (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 0", borderBottom: `1px solid ${C.grey100}` }}>
@@ -1953,35 +2442,31 @@ const SecurityScreen = ({ nav }) => {
         {/* Sessions */}
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Active Sessions</div>
         <Card style={{ padding: 0, overflow: "hidden", marginBottom: 14 }}>
-          {sessions.map((s, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i < sessions.length - 1 ? `1px solid ${C.grey100}` : "none" }}>
-              <span style={{ fontSize: 20 }}>{s.active ? "💻" : "📱"}</span>
+          {sessions.length === 0 ? (
+            <div style={{ padding: 14, fontSize: 12, color: C.textSub }}>Loading sessions…</div>
+          ) : sessions.map((s, i) => (
+            <div key={s.id || i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i < sessions.length - 1 ? `1px solid ${C.grey100}` : "none" }}>
+              <span style={{ fontSize: 20 }}>{s.device?.includes("Windows") ? "💻" : "📱"}</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.dev}</div>
-                <div style={{ fontSize: 11, color: C.textSub }}>{s.loc} · {s.time}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{s.device || "Unknown device"}</div>
+                <div style={{ fontSize: 11, color: C.textSub }}>{s.location || "Unknown"} · {s.last_seen ? new Date(s.last_seen).toLocaleString("en-NG") : "Now"}</div>
               </div>
-              {s.active
-                ? <Badge color={C.green}>Active</Badge>
-                : <button onClick={() => setToast({ msg: "Session terminated.", type: "success" })} style={{ background: C.redPale, border: "none", borderRadius: 6, padding: "4px 10px", color: C.red, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>End</button>
-              }
+              <Badge color={C.green}>Active</Badge>
             </div>
           ))}
-          <div style={{ padding: 12 }}>
-            <Btn full variant="ghost" size="sm" onClick={() => setToast({ msg: "All other sessions ended.", type: "success" })} style={{ color: C.red }}>End All Other Sessions</Btn>
-          </div>
         </Card>
 
         {/* Danger zone */}
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Danger Zone</div>
         <Card style={{ padding: 0, overflow: "hidden" }}>
           {[
-            { l: "Freeze Account",             sub: "Block all transactions temporarily", icon: "🔒" },
-            { l: "Report Suspicious Activity", sub: "Alert our security team",            icon: "⚠️" },
-            { l: "Delete Account",             sub: "Permanently remove your account",    icon: "🗑️" },
+            { l: "Freeze Account",             sub: "Block all transactions temporarily", icon: "lock" },
+            { l: "Report Suspicious Activity", sub: "Alert our security team",            icon: "alert" },
+            { l: "Delete Account",             sub: "Permanently remove your account",    icon: "trash" },
           ].map((item, i, arr) => (
             <button key={i} onClick={() => setToast({ msg: `${item.l} — please contact support@noorpay.ng`, type: "warn" })}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "none", border: "none", borderBottom: i < arr.length - 1 ? `1px solid ${C.grey100}` : "none", cursor: "pointer", textAlign: "left" }}>
-              <span style={{ fontSize: 20 }}>{item.icon}</span>
+              <Icon name={item.icon} size={20} color={C.text} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.red }}>{item.l}</div>
                 <div style={{ fontSize: 11, color: C.textSub }}>{item.sub}</div>
@@ -1997,9 +2482,14 @@ const SecurityScreen = ({ nav }) => {
         <Inp label="New PIN" type="password" value={newPin} onChange={v => setNewPin(v.slice(0, 4))} placeholder="••••" />
         <Inp label="Confirm New PIN" type="password" value={newPin2} onChange={v => setNewPin2(v.slice(0, 4))} placeholder="••••" />
         <Btn full variant="primary" disabled={!oldPin || newPin.length < 4 || newPin !== newPin2}
-          onClick={() => {
-            setPinModal(false); setOldPin(""); setNewPin(""); setNewPin2("");
-            setToast({ msg: "PIN changed successfully!", type: "success" });
+          onClick={async () => {
+            try {
+              await auth.changePin({ current_pin: oldPin, new_pin: newPin, confirm_pin: newPin2 });
+              setPinModal(false); setOldPin(""); setNewPin(""); setNewPin2("");
+              setToast({ msg: "PIN changed successfully!", type: "success" });
+            } catch (e) {
+              setToast({ msg: e.detail || e.current_pin || e.confirm_pin || "Unable to change PIN", type: "error" });
+            }
           }}>Change PIN</Btn>
         {newPin && newPin2 && newPin !== newPin2 && <p style={{ fontSize: 12, color: C.red, marginTop: 8 }}>PINs do not match</p>}
       </Modal>
@@ -2072,10 +2562,10 @@ const AppSettings = ({ nav }) => {
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>About</div>
         <Card style={{ marginBottom: 14 }}>
           {[
-            ["App Version",          "v4.0.0 (Build 401)"],
-            ["Last Updated",         "July 2025"],
+            ["App Version",          "v1.0.0 (Build 401)"],
+            ["Last Updated",         "July 2026"],
             ["Shari'ah Compliance",  "AAOIFI Standards"],
-            ["FYP Session",          "2024/2025"],
+            ["FYP Session",          "2025/2026"],
             ["Developer",            "Abdurkabir Mardhiyyah"],
             ["Support",              "help@noorpay.ng"],
           ].map(([k, v], i, arr) => (
@@ -2087,8 +2577,8 @@ const AppSettings = ({ nav }) => {
         </Card>
 
         <div style={{ background: C.greenPale, border: `1px solid ${C.green}30`, borderRadius: 8, padding: 12, textAlign: "center" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.green, marginBottom: 4 }}>🕌 NoorPay v4.0</div>
-          <div style={{ fontSize: 11, color: C.textSub }}>Final Year Project · Abdurkabir Mardhiyyah<br />Department of Computer Science · 2024/2025</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.green, marginBottom: 4 }}>🕌 NoorPay </div>
+          <div style={{ fontSize: 11, color: C.textSub }}>Final Year Project · Abdurkabir Mardhiyyah<br />Department of Mathematical and Computer Sciences · 2025/2026</div>
         </div>
       </div>
     </div>
@@ -2101,15 +2591,17 @@ const BeneficiariesScreen = ({ nav }) => {
   const [modal, setModal] = useState(false);
   const [toast, setToast] = useState(null);
   const [search, setSearch] = useState("");
-  const [bens, setBens] = useState([
-    { name: "Ahmad Musa",    bank: "NoorPay",   account: "0987654321", icon: "🧑", fav: true  },
-    { name: "Fatimah Bello", bank: "GTBank",   account: "0112345678", icon: "👩", fav: true  },
-    { name: "Ibrahim Saleh", bank: "NoorPay",   account: "0123987654", icon: "👨", fav: false },
-    { name: "Aisha Yusuf",   bank: "Access",   account: "0445566778", icon: "👩", fav: false },
-    { name: "Musa Ibrahim",  bank: "First Bank",account:"3344556677", icon: "🧑", fav: false },
-  ]);
+  const [bens, setBens] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ name: "", bank: "NoorPay", account: "" });
-  const shown = bens.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => {
+    let active = true;
+    wallet.getBeneficiaries().then((data) => {
+      if (active) setBens(Array.isArray(data) ? data : []);
+    }).catch(() => { if (active) setBens([]); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+  const shown = bens.filter((b) => (b.name || "").toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div style={{ paddingBottom: 80 }}>
@@ -2124,15 +2616,15 @@ const BeneficiariesScreen = ({ nav }) => {
         </div>
 
         {/* Favourites */}
-        {shown.filter(b => b.fav).length > 0 && <>
+        {shown.filter((b) => b.is_favourite).length > 0 && <>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Favourites ⭐</div>
           <Card style={{ overflow: "hidden", padding: 0, marginBottom: 14 }}>
-            {shown.filter(b => b.fav).map((b, i, arr) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i < arr.length - 1 ? `1px solid ${C.grey100}` : "none" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: C.greenPale, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{b.icon}</div>
+            {shown.filter((b) => b.is_favourite).map((b, i, arr) => (
+              <div key={b.id || i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i < arr.length - 1 ? `1px solid ${C.grey100}` : "none" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: C.greenPale, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>👤</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{b.name}</div>
-                  <div style={{ fontSize: 11, color: C.textSub }}>{b.bank} · {b.account}</div>
+                  <div style={{ fontSize: 11, color: C.textSub }}>{b.bank_name || "NoorPay"} · {b.account_number}</div>
                 </div>
                 <Btn variant="primary" size="sm" onClick={() => nav("send")}>Send</Btn>
               </div>
@@ -2143,16 +2635,27 @@ const BeneficiariesScreen = ({ nav }) => {
         {/* All */}
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>All Beneficiaries</div>
         <Card style={{ overflow: "hidden", padding: 0 }}>
-          {shown.map((b, i, arr) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i < arr.length - 1 ? `1px solid ${C.grey100}` : "none" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: C.grey100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{b.icon}</div>
+          {loading ? (
+            <div style={{ padding: 14, fontSize: 12, color: C.textSub }}>Loading beneficiaries…</div>
+          ) : shown.length === 0 ? (
+            <div style={{ padding: 14, fontSize: 12, color: C.textSub }}>No beneficiaries yet.</div>
+          ) : shown.map((b, i, arr) => (
+            <div key={b.id || i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i < arr.length - 1 ? `1px solid ${C.grey100}` : "none" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: C.grey100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>👤</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{b.name}</div>
-                <div style={{ fontSize: 11, color: C.textSub }}>{b.bank} · {b.account}</div>
+                <div style={{ fontSize: 11, color: C.textSub }}>{b.bank_name || "NoorPay"} · {b.account_number}</div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => { setBens(prev => prev.map((x, j) => j === bens.indexOf(b) ? { ...x, fav: !x.fav } : x)); setToast({ msg: b.fav ? "Removed from favourites" : "Added to favourites ⭐", type: "success" }); }}
-                  style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>{b.fav ? "⭐" : "☆"}</button>
+                <button onClick={async () => {
+                  try {
+                    await wallet.toggleFavourite(b.id);
+                    setBens(prev => prev.map((x) => x.id === b.id ? { ...x, is_favourite: !x.is_favourite } : x));
+                    setToast({ msg: b.is_favourite ? "Removed from favourites" : "Added to favourites ⭐", type: "success" });
+                  } catch {
+                    setToast({ msg: "Unable to update favourite", type: "error" });
+                  }
+                }} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>{b.is_favourite ? "⭐" : "☆"}</button>
                 <Btn variant="primary" size="sm" onClick={() => nav("send")}>Send</Btn>
               </div>
             </div>
@@ -2169,7 +2672,17 @@ const BeneficiariesScreen = ({ nav }) => {
         ]} />
         <Inp label="Account number" value={form.account} onChange={v => setForm(f => ({ ...f, account: v.slice(0, 10) }))} placeholder="10-digit account number" note="Must be exactly 10 digits" />
         <Btn full variant="primary" disabled={!form.name || form.account.length < 10}
-          onClick={() => { setBens(prev => [...prev, { ...form, icon: "👤", fav: false }]); setModal(false); setForm({ name: "", bank: "NoorPay", account: "" }); setToast({ msg: `${form.name} added!`, type: "success" }); }}>
+          onClick={async () => {
+            try {
+              const created = await wallet.addBeneficiary({ name: form.name, account_number: form.account, bank_name: form.bank, bank_code: form.bank === "NoorPay" ? "000" : "001" });
+              setBens(prev => [...prev, created]);
+              setModal(false);
+              setForm({ name: "", bank: "NoorPay", account: "" });
+              setToast({ msg: `${form.name} added!`, type: "success" });
+            } catch (e) {
+              setToast({ msg: e.detail || "Unable to add beneficiary", type: "error" });
+            }
+          }}>
           Save Beneficiary
         </Btn>
       </Modal>
@@ -2182,13 +2695,27 @@ const SendMoney = ({ nav }) => {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ recipient: "", amount: "", note: "", pin: ["", "", "", ""] });
   const [toast, setToast] = useState(null);
+  const [beneficiaries, setBeneficiaries] = useState([]);
+  const [reference, setReference] = useState("");
   const pinRefs = useRef([]);
+  useEffect(() => {
+    wallet.getBeneficiaries().then((data) => setBeneficiaries(Array.isArray(data) ? data : [])).catch(() => setBeneficiaries([]));
+  }, []);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const handlePin = (i, v) => {
     const a = [...form.pin]; a[i] = v.slice(-1); set("pin", a);
     if (v && i < 3) pinRefs.current[i + 1]?.focus();
   };
-  const ref = "AMP" + Date.now().toString().slice(-8);
+  const submitTransfer = async () => {
+    try {
+      const data = await txApi.sendInternal({ recipient_account: form.recipient, amount: form.amount, pin: form.pin.join(""), note: form.note });
+      setReference(data.reference || "");
+      setStep(3);
+      setToast({ msg: "Transfer successful!", type: "success" });
+    } catch (e) {
+      setToast({ msg: e.detail || "Transfer failed", type: "error" });
+    }
+  };
   return (
     <div style={{ paddingBottom: 80 }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
@@ -2200,15 +2727,15 @@ const SendMoney = ({ nav }) => {
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: C.grey700, marginBottom: 8 }}>Recent beneficiaries</div>
               <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
-                {["Ahmad M.", "Fatimah B.", "Ibrahim S."].map((n, i) => (
-                  <button key={i} onClick={() => set("recipient", n)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, background: form.recipient === n ? C.greenPale : C.grey100, border: `1.5px solid ${form.recipient === n ? C.green : C.grey200}`, borderRadius: 10, padding: "8px 14px", cursor: "pointer", flexShrink: 0 }}>
-                    <span style={{ fontSize: 22 }}>👤</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{n}</span>
+                {beneficiaries.slice(0, 3).map((b, i) => (
+                  <button key={b.id || i} onClick={() => set("recipient", b.account_number)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, background: form.recipient === b.account_number ? C.greenPale : C.grey100, border: `1.5px solid ${form.recipient === b.account_number ? C.green : C.grey200}`, borderRadius: 10, padding: "8px 14px", cursor: "pointer", flexShrink: 0 }}>
+                    <Icon name="user" size={22} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{b.name}</span>
                   </button>
                 ))}
               </div>
             </div>
-            <Inp label="Or enter account number / name" value={form.recipient} onChange={v => set("recipient", v)} placeholder="Account number or name" />
+            <Inp label="Recipient account number" value={form.recipient} onChange={v => set("recipient", v)} placeholder="10-digit account number" note="Enter the NoorPay account number of the recipient" />
             <Inp label="Amount (₦)" type="number" value={form.amount} onChange={v => set("amount", v)} placeholder="0.00" />
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
               {["5000", "10000", "25000", "50000"].map(a => (
@@ -2239,16 +2766,16 @@ const SendMoney = ({ nav }) => {
                 ))}
               </div>
             </div>
-            <Btn full variant="primary" disabled={form.pin.join("").length < 4} onClick={() => setStep(3)}>Authorise Transfer</Btn>
+            <Btn full variant="primary" disabled={form.pin.join("").length < 4} onClick={submitTransfer}>Authorise Transfer</Btn>
           </Card>
         )}
         {step === 3 && (
           <div style={{ textAlign: "center", padding: "40px 20px" }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
+            <div style={{ marginBottom: 16 }}><Icon name="check" size={64} /></div>
             <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 8 }}>Transfer Successful!</div>
             <div style={{ fontSize: 14, color: C.textSub, marginBottom: 4 }}>₦{Number(form.amount).toLocaleString()} sent to</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: C.green, marginBottom: 4 }}>{form.recipient}</div>
-            <div style={{ fontSize: 12, color: C.textSub, marginBottom: 24 }}>Reference: {ref}</div>
+            <div style={{ fontSize: 12, color: C.textSub, marginBottom: 24 }}>Reference: {reference || "AMP0000000000"}</div>
             <Btn full variant="primary" onClick={() => nav("home")}>Back to Home</Btn>
           </div>
         )}
@@ -2259,33 +2786,73 @@ const SendMoney = ({ nav }) => {
 
 // ── Notifications ─────────────────────────────────────────────────
 const Notifications = ({ nav }) => {
-  const notifs = [
-    { icon: "💰", title: "Salary Received",       body: "₦250,000 credited to your wallet",         time: "2h ago",   read: false, c: C.green },
-    { icon: "⭐", title: "Zakat Reminder",         body: "Your annual Zakat is due — ₦12,181",       time: "1d ago",   read: false, c: C.amber },
-    { icon: "🎓", title: "Scholarship Deadline",   body: "MTN Foundation — deadline in 5 days!",     time: "2d ago",   read: true,  c: C.red   },
-    { icon: "📊", title: "Budget Alert",           body: "Entertainment budget exceeded by ₦3,500", time: "3d ago",   read: true,  c: C.red   },
-    { icon: "🤝", title: "Qard Hasan Approved",    body: "Your loan application has been approved",  time: "4d ago",   read: true,  c: C.green },
-    { icon: "🎁", title: "Reward Earned",          body: "You earned 200 loyalty points!",           time: "5d ago",   read: true,  c: C.amber },
-    { icon: "📅", title: "Savings Auto-deducted",  body: "₦5,000 saved to Hajj Fund automatically", time: "6d ago",   read: true,  c: C.blue  },
-  ];
+  const [items, setItems] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+
+  const loadNotifications = async () => {
+    setLoading(true);
+    try {
+      const [rows, countData] = await Promise.all([notifApi.getAll(), notifApi.getUnreadCount()]);
+      setItems(Array.isArray(rows) ? rows : []);
+      setUnreadCount(Number(countData?.unread_count || 0));
+    } catch {
+      setItems([]);
+      setUnreadCount(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notifApi.markAllRead();
+      setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+      setToast({ msg: "All notifications marked as read.", type: "success" });
+    } catch {
+      setToast({ msg: "Unable to update notifications.", type: "error" });
+    }
+  };
+
+  const handleMarkRead = async (id) => {
+    try {
+      await notifApi.markRead(id);
+      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch {
+      setToast({ msg: "Could not mark notification as read.", type: "error" });
+    }
+  };
+
   return (
     <div style={{ paddingBottom: 80 }}>
-      <PageHeader title="Notifications" sub="2 unread" onBack={() => nav("home")} />
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      <PageHeader title="Notifications" sub={loading ? "Loading…" : `${unreadCount} unread`} onBack={() => nav("home")} />
       <div style={{ padding: 16 }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-          <button style={{ background: "none", border: "none", color: C.green, fontSize: 13, cursor: "pointer" }}>Mark all read</button>
+          <button onClick={handleMarkAllRead} style={{ background: "none", border: "none", color: C.green, fontSize: 13, cursor: "pointer" }}>Mark all read</button>
         </div>
-        {notifs.map((n, i) => (
-          <Card key={i} style={{ marginBottom: 8, background: n.read ? C.white : C.greenPale, borderLeft: `3px solid ${n.read ? C.grey200 : n.c}` }}>
+        {loading ? (
+          <div style={{ fontSize: 13, color: C.textSub, padding: 8 }}>Loading notifications…</div>
+        ) : items.length === 0 ? (
+          <div style={{ fontSize: 13, color: C.textSub, padding: 8 }}>You do not have notifications yet.</div>
+        ) : items.map((n, i) => (
+          <Card key={n.id || i} style={{ marginBottom: 8, background: n.is_read ? C.white : C.greenPale, borderLeft: `3px solid ${n.is_read ? C.grey200 : C.green}` }}>
             <div style={{ display: "flex", gap: 10 }}>
-              <span style={{ fontSize: 24, flexShrink: 0 }}>{n.icon}</span>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>{n.type === "budget" ? "📊" : n.type === "zakat" ? "⭐" : n.type === "scholarship" ? "🎓" : n.type === "reward" ? "🎁" : "🔔"}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: C.text }}>{n.title}</span>
-                  {!n.read && <div style={{ width: 8, height: 8, borderRadius: "50%", background: n.c, flexShrink: 0, marginTop: 4 }} />}
+                  <span style={{ fontSize: 13, fontWeight: n.is_read ? 500 : 700, color: C.text }}>{n.title}</span>
+                  {!n.is_read && <button onClick={() => handleMarkRead(n.id)} style={{ background: "none", border: "none", color: C.green, fontSize: 11, cursor: "pointer" }}>Mark read</button>}
                 </div>
                 <div style={{ fontSize: 12, color: C.textSub, marginTop: 2, lineHeight: 1.4 }}>{n.body}</div>
-                <div style={{ fontSize: 10, color: C.textSub, marginTop: 4 }}>{n.time}</div>
+                <div style={{ fontSize: 10, color: C.textSub, marginTop: 4 }}>{new Date(n.created_at).toLocaleString("en-NG", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
               </div>
             </div>
           </Card>
@@ -2298,7 +2865,19 @@ const Notifications = ({ nav }) => {
 // ── Reports & Analytics ───────────────────────────────────────────
 const Reports = ({ nav }) => {
   const [period, setPeriod] = useState("monthly");
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
   const monthly = [{ l: "Jan", v: 42000 }, { l: "Feb", v: 58000 }, { l: "Mar", v: 35000 }, { l: "Apr", v: 71000 }, { l: "May", v: 48000 }, { l: "Jun", v: 63000, highlight: true }];
+
+  useEffect(() => {
+    const month = new Date().getMonth() + 1;
+    const year = new Date().getFullYear();
+    reports.getMonthly(month, year)
+      .then((data) => setReport(data))
+      .catch(() => setReport(null))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div style={{ paddingBottom: 80 }}>
       <PageHeader title="Reports & Analytics" sub="Financial overview & insights" onBack={() => nav("home")} />
@@ -2309,10 +2888,10 @@ const Reports = ({ nav }) => {
           ))}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-          <Stat label="Total Income"   value="₦350,000" color={C.green} sub="+12% vs last month" />
-          <Stat label="Total Expenses" value="₦113,000" color={C.red}   sub="-5% vs last month"  />
-          <Stat label="Net Savings"    value="₦237,000" color={C.blue}  sub="67.7% savings rate"  />
-          <Stat label="Zakat Paid"     value="₦8,000"   color={C.amber} sub="This month"           />
+          <Stat label="Total Income"   value={loading ? "..." : formatNaira(report?.income || 0)} color={C.green} sub="This month" />
+          <Stat label="Total Expenses" value={loading ? "..." : formatNaira(report?.expenses || 0)} color={C.red}   sub="This month"  />
+          <Stat label="Net Savings"    value={loading ? "..." : formatNaira(report?.net_savings || 0)} color={C.blue}  sub={loading ? "" : report?.savings_rate || ""}  />
+          <Stat label="Zakat Paid"     value={loading ? "..." : formatNaira(report?.zakat_paid || 0)} color={C.amber} sub="This month"           />
         </div>
         <Card style={{ marginBottom: 14 }}>
           <SectionHeader title="Monthly Spending Trend" />
@@ -2326,20 +2905,19 @@ const Reports = ({ nav }) => {
               <div style={{ fontSize: 11, color: C.textSub }}>out of 100</div>
             </div>
             <div style={{ flex: 1 }}>
-              <Progress pct={88} color={C.green} h={12} />
-              <div style={{ fontSize: 12, color: C.textSub, marginTop: 6 }}>Excellent! Your finances align well with Islamic principles.</div>
-              {[["Riba-free transactions", 100], ["Zakat compliance", 85], ["Savings rate", 68], ["Charitable giving", 90]].map(([k, v], i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-                  <span style={{ fontSize: 11, color: C.textSub }}>{k}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: v >= 80 ? C.green : C.amber }}>{v}%</span>
+              <Progress pct={loading ? 0 : Number(report?.halal_finance_score || 0)} color={C.green} h={12} />
+              <div style={{ fontSize: 12, color: C.textSub, marginTop: 6 }}>{loading ? "Loading your latest score..." : "Based on your monthly income, expenses, and giving."}</div>
+              {report?.ai_insights?.map((insight, i) => (
+                <div key={i} style={{ marginTop: 6 }}>
+                  <span style={{ fontSize: 11, color: C.textSub }}>{insight}</span>
                 </div>
               ))}
             </div>
           </div>
         </Card>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <Btn variant="primary" icon="📄" full>Export PDF</Btn>
-          <Btn variant="outline" icon="📊" full>Export Excel</Btn>
+          <Btn variant="primary" icon="pdf" full>Export PDF</Btn>
+          <Btn variant="outline" icon="chart" full>Export Excel</Btn>
         </div>
       </div>
     </div>
@@ -2347,40 +2925,40 @@ const Reports = ({ nav }) => {
 };
 
 // ── Profile / Me ──────────────────────────────────────────────────
-const Profile = ({ nav, user }) => {
+const Profile = ({ nav, user, onLogout }) => {
   const groups = [
     { title: "My Account", items: [
-      { icon: "👤", label: "Personal Information",      to: "home"           },
-      { icon: "🔐", label: "Security Settings",         to: "security"       },
-      { icon: "💳", label: "Virtual Cards",             to: "cards"          },
-      { icon: "🎁", label: "Rewards & Points",          to: "rewards"        },
-      { icon: "👥", label: "Beneficiaries",             to: "beneficiaries"  },
+      { icon: "user",    label: "Personal Information",      to: "home"           },
+      { icon: "lock",    label: "Security Settings",         to: "security"       },
+      { icon: "card",    label: "Virtual Cards",             to: "cards"          },
+      { icon: "gift",    label: "Rewards & Points",          to: "rewards"        },
+      { icon: "community", label: "Beneficiaries",           to: "beneficiaries"  },
     ]},
     { title: "Finance", items: [
-      { icon: "📊", label: "Financial Reports",         to: "reports"        },
-      { icon: "🤖", label: "AI Financial Advisor",      to: "ai"             },
-      { icon: "⭐", label: "Zakat & Sadaqah",           to: "zakat"          },
-      { icon: "🤝", label: "Qard Hasan Loans",          to: "qard"           },
-      { icon: "🎓", label: "Scholarship Tracker",       to: "scholarship"    },
-      { icon: "📚", label: "Student Finance",           to: "student"        },
+      { icon: "chart",   label: "Financial Reports",         to: "reports"        },
+      { icon: "ai",      label: "AI Financial Advisor",      to: "ai"             },
+      { icon: "star",    label: "Zakat & Sadaqah",           to: "zakat"          },
+      { icon: "community", label: "Qard Hasan Loans",        to: "qard"           },
+      { icon: "star",    label: "Scholarship Tracker",       to: "scholarship"    },
+      { icon: "school",  label: "Student Finance",           to: "student"        },
     ]},
     { title: "Settings & Support", items: [
-      { icon: "⚙️", label: "App Settings",             to: "settings"       },
-      { icon: "🔔", label: "Notifications",             to: "notifications"  },
-      { icon: "📖", label: "Financial Literacy",        to: "learn"          },
-      { icon: "🤝", label: "Community & Campaigns",     to: "community"      },
-      { icon: "❓", label: "Help & Support",            to: "home"           },
+      { icon: "settings", label: "App Settings",            to: "settings"       },
+      { icon: "bell",     label: "Notifications",           to: "notifications"  },
+      { icon: "book",     label: "Financial Literacy",      to: "learn"          },
+      { icon: "community", label: "Community & Campaigns",  to: "community"      },
+      { icon: "help",     label: "Help & Support",          to: "home"           },
     ]},
   ];
   return (
     <div style={{ paddingBottom: 80 }}>
       <div style={{ background: C.green, padding: "48px 20px 28px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 60, height: 60, borderRadius: 30, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>👤</div>
+          <div style={{ width: 60, height: 60, borderRadius: 30, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="user" size={28} color={C.white} /></div>
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, color: C.white }}>{user?.full_name || "NoorPay User"}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>{user?.email || "Loading..."}</div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>Account: {user?.account_number || "Not assigned"}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{user?.email || "Loading..."}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>Account: {user?.account_number || "Not assigned"}</div>
             <div style={{ marginTop: 4 }}><Badge color="#86efac">{user?.is_verified ? "✅ Verified" : "Awaiting verification"}</Badge></div>
           </div>
         </div>
@@ -2397,7 +2975,7 @@ const Profile = ({ nav, user }) => {
             <Card style={{ overflow: "hidden", padding: 0 }}>
               {g.items.map((item, ii) => (
                 <button key={ii} onClick={() => nav(item.to)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "none", border: "none", borderBottom: ii < g.items.length - 1 ? `1px solid ${C.grey100}` : "none", cursor: "pointer", textAlign: "left" }}>
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>{item.icon}</span>
+                  <Icon name={item.icon} size={20} color={C.grey700} />
                   <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: C.text }}>{item.label}</span>
                   <span style={{ color: C.textSub, fontSize: 14 }}>›</span>
                 </button>
@@ -2420,20 +2998,17 @@ const Profile = ({ nav, user }) => {
 // ── Transactions ──────────────────────────────────────────────────
 const Transactions = ({ nav }) => {
   const [filter, setFilter] = useState("all");
-  const all = [
-    { icon: "💰", title: "Salary Credit",      sub: "GTBank Payroll",       amt: "+₦250,000", col: C.green,  cat: "income"   },
-    { icon: "💸", title: "Transfer to Ahmad",   sub: "NoorPay Internal",      amt: "-₦15,000",  col: C.red,    cat: "transfer" },
-    { icon: "📱", title: "MTN Data — 5GB",      sub: "Bills",                amt: "-₦2,500",   col: C.red,    cat: "bills"    },
-    { icon: "⭐", title: "Zakat Payment",        sub: "Islamic Finance",      amt: "-₦8,000",   col: C.amber,  cat: "zakat"    },
-    { icon: "💰", title: "Qard Repayment Recv.", sub: "Community Finance",    amt: "+₦10,000",  col: C.green,  cat: "income"   },
-    { icon: "📱", title: "Airtel Airtime",       sub: "Bills",                amt: "-₦1,000",   col: C.red,    cat: "bills"    },
-    { icon: "💰", title: "Wallet Funding",       sub: "Bank Transfer In",     amt: "+₦100,000", col: C.green,  cat: "income"   },
-    { icon: "🎓", title: "Tuition Payment",      sub: "Student Expense",      amt: "-₦85,000",  col: C.red,    cat: "student"  },
-    { icon: "🌙", title: "Sadaqah Donation",     sub: "Clean Water Campaign", amt: "-₦5,000",   col: C.purple, cat: "zakat"    },
-    { icon: "🎁", title: "Reward Cashback",      sub: "Loyalty Points",       amt: "+₦850",     col: C.green,  cat: "income"   },
-  ];
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    txApi.getAll().then((data) => {
+      if (active) setItems(Array.isArray(data) ? data : []);
+    }).catch(() => { if (active) setItems([]); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
   const filters = ["all", "income", "transfer", "bills", "zakat", "student"];
-  const shown = filter === "all" ? all : all.filter(t => t.cat === filter);
+  const shown = filter === "all" ? items : items.filter((t) => (t.category || "").toLowerCase() === filter || (t.type || "").toLowerCase() === filter);
   return (
     <div style={{ paddingBottom: 80 }}>
       <PageHeader title="Transactions" sub="Full payment history" />
@@ -2444,7 +3019,18 @@ const Transactions = ({ nav }) => {
       </div>
       <div style={{ padding: "10px 14px 0" }}>
         <Card style={{ overflow: "hidden", padding: 0 }}>
-          {shown.map((tx, i) => <ListItem key={i} icon={tx.icon} title={tx.title} sub={tx.sub} right={tx.amt} rightColor={tx.col} />)}
+          {loading ? (
+            <div style={{ padding: 14, fontSize: 12, color: C.textSub }}>Loading transactions…</div>
+          ) : shown.length === 0 ? (
+            <div style={{ padding: 14, fontSize: 12, color: C.textSub }}>No transactions found for this filter.</div>
+          ) : shown.map((tx, i) => {
+            const isIncoming = tx.type === "credit" || tx.type === "income";
+            const icon = tx.type === "transfer" ? "💸" : tx.type === "airtime" ? "📱" : tx.type === "data" ? "📦" : tx.type === "zakat" ? "⭐" : tx.type === "qard" ? "🤝" : "💰";
+            const title = tx.description || "Transaction";
+            const sub = tx.recipient_name || tx.bank_name || new Date(tx.created_at).toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+            const right = `${isIncoming ? "+" : "-"}${formatNaira(tx.amount)}`;
+            return <ListItem key={tx.id || i} icon={icon} title={title} sub={sub} right={right} rightColor={isIncoming ? C.green : C.red} />;
+          })}
         </Card>
       </div>
     </div>
@@ -2458,15 +3044,17 @@ const AirtimeData = ({ nav }) => {
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [bundle, setBundle] = useState("");
+  const [pin, setPin] = useState("");
   const [done, setDone] = useState(false);
   const [toast, setToast] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const nets = [{ k: "mtn", l: "MTN", c: "#FFCB05" }, { k: "airtel", l: "Airtel", c: "#E40000" }, { k: "glo", l: "Glo", c: "#006600" }, { k: "9mobile", l: "9mobile", c: "#008000" }];
   const bundles = [{ l: "1GB · 30 days", p: "500" }, { l: "2GB · 30 days", p: "1000" }, { l: "5GB · 30 days", p: "2000" }, { l: "10GB · 30 days", p: "3500" }];
   if (done) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
+        <div style={{ marginBottom: 16 }}><Icon name="check" size={56} /></div>
         <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{mode === "airtime" ? "Airtime Delivered!" : "Data Activated!"}</div>
         <div style={{ fontSize: 14, color: C.textSub, marginBottom: 24 }}>Successfully sent to {phone}</div>
         <Btn full variant="primary" onClick={() => { setDone(false); setPhone(""); setAmount(""); setBundle(""); }}>Buy Again</Btn>
@@ -2492,6 +3080,7 @@ const AirtimeData = ({ nav }) => {
             ))}
           </div>
           <Inp label="Phone number" type="tel" value={phone} onChange={setPhone} placeholder="080 0000 0000" />
+          <Inp label="Transaction PIN" type="password" value={pin} onChange={v => setPin(v.slice(0, 4))} placeholder="••••" note="Enter your 4-digit transaction PIN" />
           {mode === "airtime" ? <>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
               {["100", "200", "500", "1000", "2000"].map(a => (
@@ -2507,8 +3096,23 @@ const AirtimeData = ({ nav }) => {
               </button>
             ))}
           </>}
-          <Btn full variant="primary" disabled={!phone || !amount} style={{ marginTop: 4 }} onClick={() => { setDone(true); setToast({ msg: `${mode === "airtime" ? "Airtime" : "Data"} delivered to ${phone}`, type: "success" }); }}>
-            Pay ₦{Number(amount || 0).toLocaleString()}
+          <Btn full variant="primary" disabled={!phone || !amount || pin.length < 4 || submitting} style={{ marginTop: 4 }} onClick={async () => {
+            setSubmitting(true);
+            try {
+              if (mode === "airtime") {
+                await txApi.buyAirtime({ phone, amount, network: net, pin });
+              } else {
+                await txApi.buyData({ phone, amount, network: net, pin, bundle_name: bundle || "Data bundle" });
+              }
+              setDone(true);
+              setToast({ msg: `${mode === "airtime" ? "Airtime" : "Data"} delivered to ${phone}`, type: "success" });
+            } catch (e) {
+              setToast({ msg: e.detail || "Purchase failed", type: "error" });
+            } finally {
+              setSubmitting(false);
+            }
+          }}>
+            {submitting ? "Processing..." : `Pay ₦${Number(amount || 0).toLocaleString()}`}
           </Btn>
         </Card>
       </div>
@@ -2533,7 +3137,7 @@ const Cards = ({ nav }) => {
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", marginBottom: 2 }}>NoorPay Virtual</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#D4B483" }}>Naira Card</div>
             </div>
-            <div style={{ fontSize: 28 }}>💳</div>
+            <div style={{ fontSize: 28 }}><Icon name="card" size={28} color={C.white} /></div>
           </div>
           <div style={{ fontSize: 18, fontWeight: 700, color: C.white, letterSpacing: 3, marginBottom: 20, fontFamily: "monospace" }}>
             {vis ? "5412 1234 5678 3456" : "5412 •••• •••• 3456"}
@@ -2555,9 +3159,9 @@ const Cards = ({ nav }) => {
           {frozen && (
             <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 32 }}>🔒</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.white }}>Card Frozen</div>
-              </div>
+                  <Icon name="lock" size={32} />
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.white }}>Card Frozen</div>
+                </div>
             </div>
           )}
         </div>
@@ -2568,13 +3172,13 @@ const Cards = ({ nav }) => {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
           {[
-            { icon: vis ? "🙈" : "👁", label: vis ? "Hide" : "Reveal", fn: () => setVis(!vis) },
-            { icon: frozen ? "🔓" : "🔒", label: frozen ? "Unfreeze" : "Freeze", fn: () => setFrozen(!frozen) },
-            { icon: "📋", label: "Copy No.", fn: () => setToast({ msg: "Card number copied!", type: "success" }) },
-            { icon: "⚙️", label: "Settings", fn: () => setToast({ msg: "Card settings coming soon", type: "info" }) },
+            { icon: vis ? "eyeOff" : "eye", label: vis ? "Hide" : "Reveal", fn: () => setVis(!vis) },
+            { icon: frozen ? "lock" : "unlock", label: frozen ? "Unfreeze" : "Freeze", fn: () => setFrozen(!frozen) },
+            { icon: "clipboard", label: "Copy No.", fn: () => setToast({ msg: "Card number copied!", type: "success" }) },
+            { icon: "settings", label: "Settings", fn: () => setToast({ msg: "Card settings coming soon", type: "info" }) },
           ].map((a, i) => (
             <button key={i} onClick={a.fn} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, background: C.white, border: `1px solid ${C.grey200}`, borderRadius: 10, padding: "10px 4px", cursor: "pointer" }}>
-              <span style={{ fontSize: 20 }}>{a.icon}</span>
+              <Icon name={a.icon} size={20} />
               <span style={{ fontSize: 10, color: C.grey700 }}>{a.label}</span>
             </button>
           ))}
@@ -2596,12 +3200,13 @@ const Cards = ({ nav }) => {
 // MAIN APP SHELL
 // ════════════════════════════════════════════════════════════════
 export default function App() {
-  const [auth, setAuth]   = useState("landing");
+  const [authScreen, setAuthScreen] = useState("landing");
   const [page, setPage]   = useState("home");
   const [navAct, setNavAct] = useState("home");
   const [receiveOpen, setReceiveOpen] = useState(false);
-  const [user, setUser]           = useState(null);
+  const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [resetInfo, setResetInfo] = useState(null);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -2611,30 +3216,32 @@ export default function App() {
     auth.getProfile()
       .then((profile) => {
         setUser(profile);
-        setAuth("app");
+        setAuthScreen("app");
       })
       .catch(() => {
         clearTokens();
-        setAuth("landing");
+        setAuthScreen("login");
       })
       .finally(() => setAuthLoading(false));
   }, []);
 
-  useEffect(() => {
-    const handleSessionExpired = () => {
-      clearTokens();
-      setUser(null);
-      setAuth("login");
-    };
-    window.addEventListener('noorpay:logout', handleSessionExpired);
-    return () => window.removeEventListener('noorpay:logout', handleSessionExpired);
-  }, []);
-
   const handleLogin = async (email, password) => {
     const data = await auth.login(email, password);
-    setTokens(data.access, data.refresh);
     setUser(data.user);
-    setAuth("app");
+    setAuthScreen("app");
+  };
+
+  const handleForgotPassword = async (email) => {
+    const data = await auth.forgotPassword(email);
+    setResetInfo(data.reset_debug || null);
+    setAuthScreen("reset");
+    return data;
+  };
+
+  const handleResetPassword = async ({ uid, token, password }) => {
+    const data = await auth.resetPassword({ uid, token, password });
+    setAuthScreen("login");
+    return data;
   };
 
   const handleLogout = async () => {
@@ -2643,12 +3250,12 @@ export default function App() {
     setUser(null);
     setPage("home");
     setNavAct("home");
-    setAuth("login");
+    setAuthScreen("login");
   };
 
   const handleRegisterSuccess = (profile) => {
     setUser(profile);
-    setAuth("app");
+    setAuthScreen("app");
   };
 
   const nav = (p) => {
@@ -2658,23 +3265,50 @@ export default function App() {
   };
 
   const navItems = [
-    { key: "home",         icon: "🏠", label: "Home"      },
-    { key: "finance",      icon: "💰", label: "Finance"   },
-    { key: "transactions", icon: "🔄", label: "History"   },
-    { key: "community",    icon: "🤝", label: "Community" },
-    { key: "me",           icon: "👤", label: "Me"        },
+    { key: "home",         icon: "home",       label: "Home"      },
+    { key: "finance",      icon: "wallet",     label: "Finance"   },
+    { key: "transactions", icon: "history",    label: "History"   },
+    { key: "community",    icon: "community",  label: "Community" },
+    { key: "me",           icon: "user",       label: "Me"        },
   ];
 
+
+
+
+
   if (authLoading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: C.text }}>Loading NoorPay...</div>;
-  if (authLoading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: C.text }}>Loading NoorPay...</div>;
-  if (auth === "landing")  return <LandingPage onGetStarted={() => setAuth("splash")} onLogin={() => setAuth("login")} />;
-  if (auth === "splash")   return <><GS/><Splash   onDone={() => setAuth("onboard")} /></>;
-  if (auth === "onboard")  return <><GS/><Onboard  onDone={() => setAuth("login")} /></>;
-  if (auth === "login")    return <><GS/><Login    onLogin={handleLogin} onReg={() => setAuth("register")} /></>;
-  if (auth === "register") return <><GS/><Register onDone={handleRegisterSuccess} onLogin={() => setAuth("login")} /></>;
+
+  if (authScreen === "landing")
+  return <LandingPage onGetStarted={() => setAuthScreen("splash")} onLogin={() => setAuthScreen("login")} />;
+
+if (authScreen === "splash")
+  return <><GS /><Splash onDone={() => setAuthScreen("onboard")} /></>;
+
+if (authScreen === "onboard")
+  return <><GS /><Onboard onDone={() => setAuthScreen("login")} /></>;
+
+if (authScreen === "login")
+  return <><GS /><Login onLogin={handleLogin} onReg={() => setAuthScreen("register")} onForgot={() => setAuthScreen("forgot")} /></>;
+
+if (authScreen === "register")
+  return <><GS /><Register onDone={handleRegisterSuccess} onLogin={() => setAuthScreen("login")} /></>;
+
+if (authScreen === "forgot")
+  return <><GS /><ForgotPassword onSubmit={handleForgotPassword} onBack={() => setAuthScreen("login")} /></>;
+
+if (authScreen === "reset")
+  return <><GS /><ResetPassword onSubmit={handleResetPassword} onBack={() => setAuthScreen("login")} resetInfo={resetInfo} /></>;
+
+
+  // if (auth === "landing")  return <LandingPage onGetStarted={() => setAuth("splash")} onLogin={() => setAuth("login")} />;
+  // if (auth === "splash")   return <><GS/><Splash   onDone={() => setAuth("onboard")} /></>;
+  // if (auth === "onboard")  return <><GS/><Onboard  onDone={() => setAuth("login")} /></>;
+  // if (auth === "login")    return <><GS/><Login    onLogin={() => setAuth("app")} onReg={() => setAuth("register")} /></>;
+  // if (auth === "register") return <><GS/><Register onDone={() => setAuth("app")} onLogin={() => setAuth("login")} /></>;
 
   // Full-screen pages (no bottom nav)
   // const [receiveOpen, setReceiveOpen] = useState(false);
+  if (authScreen !== "app") return null;
   const fullPages = {
     send: SendMoney, airtime: AirtimeData, scholarship: Scholarship,
     student: StudentFinance, qard: QardHasan, zakat: ZakatModule,
@@ -2703,8 +3337,8 @@ export default function App() {
         {navItems.map(item => {
           const active = navAct === item.key;
           return (
-            <button key={item.key} onClick={() => nav(item.key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: "8px 4px 10px", background: "none", border: "none", cursor: "pointer", borderTop: `2px solid ${active ? C.green : "transparent"}` }}>
-              <span style={{ fontSize: 20 }}>{item.icon}</span>
+            <button key={item.key} onClick={() => nav(item.key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "8px 4px 10px", background: "none", border: "none", cursor: "pointer", borderTop: `2px solid ${active ? C.green : "transparent"}` }}>
+              <Icon name={item.icon} size={20} color={active ? C.green : C.grey700} />
               <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, color: active ? C.green : C.textSub }}>{item.label}</span>
             </button>
           );
